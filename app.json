@@ -33,8 +33,7 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
-      "expo-keep-awake"
+      "expo-router"
     ]
   }
 }
