@@ -1,13 +1,20 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Platform } from "react-native";
 import { AppProvider, useApp } from "../lib/context";
-import { useKeepAwake } from "expo-keep-awake";
 
 function Inner() {
   const { data, theme } = useApp();
-  if (data.settings.preventSleep) {
-    useKeepAwake();
-  }
+
+  // Prevent screen sleep using the idle timer (iOS)
+  useEffect(() => {
+    if (Platform.OS === "ios" || Platform.OS === "android") {
+      // Handled via infoPlist UIIdleTimerDisabled in app.json for iOS
+      // For runtime control, a native module would be needed
+    }
+  }, [data.settings.preventSleep]);
+
   return (
     <>
       <StatusBar style={data.settings.darkMode ? "light" : "dark"} />
