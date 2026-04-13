@@ -33,8 +33,7 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
-      "react-native-reanimated"
+      "expo-router"
     ],
     "extra": {
       "router": {},
