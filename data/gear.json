@@ -1,0 +1,62 @@
+{
+  "disclosure": "Strength Cycle earns a small commission on purchases made through links on this page, at no extra cost to you.",
+  "categories": [
+    {
+      "title": "Equipment",
+      "products": [
+        {
+          "brand": "REP Fitness",
+          "name": "Power Racks, Barbells & Home Gym Equipment",
+          "description": "High quality power racks, barbells, and home gym equipment at a fraction of the cost of premium brands. My go-to for home gym builds.",
+          "url": "https://www.amazon.com/stores/RepFitness/page/F6EEA272-D0BD-4AA4-9E21-974E39F230A9?tag=profpeptide-20",
+          "image": "https://m.media-amazon.com/images/S/stores-image-uploads-na-prod/7/AmazonStores/ATVPDKIKX0DER/3c2a9d1a2e5756b5f3e775a2b1ea9d47.w3000.h600.jpg"
+        },
+        {
+          "brand": "Titan Fitness",
+          "name": "Strength Equipment & Accessories",
+          "description": "Solid, affordable strength equipment. Great value for anyone building a serious home gym on a budget.",
+          "url": "https://www.amazon.com/stores/TitanFitness/page/069BE55C-7EB6-41CB-AAB8-E8BF55863CEB?tag=profpeptide-20",
+          "image": "https://m.media-amazon.com/images/S/stores-image-uploads-na-prod/5/AmazonStores/ATVPDKIKX0DER/60e46b34f77a4d8de3b2e45c69e5b04e.w3000.h600.jpg"
+        },
+        {
+          "brand": "Rogue Fitness",
+          "name": "Premium Barbells, Racks & Plates",
+          "description": "The gold standard in strength equipment. Built to last a lifetime.",
+          "url": "https://www.roguefitness.com",
+          "image": ""
+        }
+      ]
+    },
+    {
+      "title": "Lifting Accessories",
+      "products": [
+        {
+          "brand": "Gymreapers",
+          "name": "Belts, Wraps, Straps & Sleeves",
+          "description": "Premium lifting accessories — belts, wraps, straps, and sleeves. Built for serious lifters who train hard.",
+          "url": "https://www.amazon.com/stores/Gymreapers/page/9E2D91D7-8011-4AE5-83DF-C31D57DFD0C8?tag=profpeptide-20",
+          "image": "https://m.media-amazon.com/images/S/stores-image-uploads-na-prod/4/AmazonStores/ATVPDKIKX0DER/e89d8edae3d29e14fc2cc1cf3f33a21c.w3000.h600.jpg"
+        },
+        {
+          "brand": "Mark Bell / Sling Shot",
+          "name": "Sling Shot, Wraps & Training Gear",
+          "description": "Mark Bell's iconic Sling Shot and accessories. If you bench press, you need a Sling Shot.",
+          "url": "https://www.amazon.com/stores/page/77FA707B-1A13-415C-9467-0F58B976650E?tag=profpeptide-20",
+          "image": ""
+        }
+      ]
+    },
+    {
+      "title": "Supplements",
+      "products": [
+        {
+          "brand": "Nutricost",
+          "name": "Creatine, Protein & Sports Nutrition",
+          "description": "High quality supplements at honest prices. Clean, third-party tested, and no unnecessary fillers.",
+          "url": "https://www.amazon.com/stores/Nutricost/page/BD5FA887-A3DD-4141-A2F1-AA814EEFEF41?tag=profpeptide-20",
+          "image": "https://m.media-amazon.com/images/S/stores-image-uploads-na-prod/e/AmazonStores/ATVPDKIKX0DER/0fd4a1e76b0c2c62d7a6ab78a4cff7e5.w3000.h600.jpg"
+        }
+      ]
+    }
+  ]
+}
