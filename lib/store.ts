@@ -1,16 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Types
 export interface LiftData {
   name: string;
-  trainingMax: number;
+  oneRepMax: number;
   notes: string;
   isCustom: boolean;
 }
 
+export interface ExtraSet {
+  percentage: number;
+  reps: number;
+}
+
 export interface LogEntry {
   id: string;
-  date: string; // ISO string
+  date: string;
   exercise: string;
   week: string;
   percentage: number;
@@ -21,14 +25,13 @@ export interface LogEntry {
 }
 
 export interface Settings {
-  weightPrecision: number; // 2.5 or 5
-  tmPercentage: number; // default 90
+  weightPrecision: number;
+  tmPercentage: number;
   preventSleep: boolean;
   markSetsAsDone: boolean;
-  restTimerDuration: number; // seconds
+  restTimerDuration: number;
   darkMode: boolean;
-  // Paid features
-  additionalExercises: boolean;
+  additionalLifts: boolean;
   adjustableSet: boolean;
   plateCalculator: boolean;
   progressLog: boolean;
@@ -39,6 +42,7 @@ export interface AppData {
   log: LogEntry[];
   settings: Settings;
   currentCycle: number;
+  extraSets: Record<string, ExtraSet[]>; // keyed by lift name
 }
 
 const STORAGE_KEY = "strength_cycle_data";
@@ -50,17 +54,17 @@ export const DEFAULT_SETTINGS: Settings = {
   markSetsAsDone: true,
   restTimerDuration: 180,
   darkMode: true,
-  additionalExercises: false,
+  additionalLifts: false,
   adjustableSet: false,
   plateCalculator: false,
   progressLog: false,
 };
 
 export const DEFAULT_LIFTS: LiftData[] = [
-  { name: "Squat", trainingMax: 225, notes: "", isCustom: false },
-  { name: "Bench Press", trainingMax: 185, notes: "", isCustom: false },
-  { name: "Deadlift", trainingMax: 275, notes: "", isCustom: false },
-  { name: "Overhead Press", trainingMax: 135, notes: "", isCustom: false },
+  { name: "Squat", oneRepMax: 100, notes: "", isCustom: false },
+  { name: "Bench Press", oneRepMax: 100, notes: "", isCustom: false },
+  { name: "Deadlift", oneRepMax: 100, notes: "", isCustom: false },
+  { name: "Overhead Press", oneRepMax: 100, notes: "", isCustom: false },
 ];
 
 export const DEFAULT_DATA: AppData = {
@@ -68,6 +72,7 @@ export const DEFAULT_DATA: AppData = {
   log: [],
   settings: DEFAULT_SETTINGS,
   currentCycle: 1,
+  extraSets: {},
 };
 
 export async function loadData(): Promise<AppData> {

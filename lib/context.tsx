@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { AppData, DEFAULT_DATA, loadData, saveData, LogEntry, LiftData, Settings } from "./store";
+import { AppData, DEFAULT_DATA, loadData, saveData, LogEntry, LiftData, Settings, ExtraSet } from "./store";
 import { darkTheme, lightTheme, Theme } from "../constants/theme";
 
 interface AppCtx {
@@ -10,6 +10,8 @@ interface AppCtx {
   addLift: (lift: LiftData) => void;
   addLogEntry: (entry: LogEntry) => void;
   setCurrentCycle: (n: number) => void;
+  addExtraSet: (liftName: string, set: ExtraSet) => void;
+  removeExtraSet: (liftName: string, index: number) => void;
   reload: () => Promise<void>;
 }
 
@@ -21,6 +23,8 @@ const Ctx = createContext<AppCtx>({
   addLift: () => {},
   addLogEntry: () => {},
   setCurrentCycle: () => {},
+  addExtraSet: () => {},
+  removeExtraSet: () => {},
   reload: async () => {},
 });
 
@@ -38,67 +42,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadData().then((d) => {
-      setData(d);
-      setLoaded(true);
-    });
+    loadData().then((d) => { setData(d); setLoaded(true); });
   }, []);
 
-  const updateSettings = useCallback(
-    (s: Partial<Settings>) => {
-      const next = { ...data, settings: { ...data.settings, ...s } };
-      persist(next);
-    },
-    [data, persist]
-  );
+  const updateSettings = useCallback((s: Partial<Settings>) => {
+    const next = { ...data, settings: { ...data.settings, ...s } };
+    persist(next);
+  }, [data, persist]);
 
-  const updateLift = useCallback(
-    (name: string, updates: Partial<LiftData>) => {
-      const next = {
-        ...data,
-        lifts: data.lifts.map((l) => (l.name === name ? { ...l, ...updates } : l)),
-      };
-      persist(next);
-    },
-    [data, persist]
-  );
+  const updateLift = useCallback((name: string, updates: Partial<LiftData>) => {
+    const next = { ...data, lifts: data.lifts.map((l) => (l.name === name ? { ...l, ...updates } : l)) };
+    persist(next);
+  }, [data, persist]);
 
-  const addLift = useCallback(
-    (lift: LiftData) => {
-      const next = { ...data, lifts: [...data.lifts, lift] };
-      persist(next);
-    },
-    [data, persist]
-  );
+  const addLift = useCallback((lift: LiftData) => {
+    persist({ ...data, lifts: [...data.lifts, lift] });
+  }, [data, persist]);
 
-  const addLogEntry = useCallback(
-    (entry: LogEntry) => {
-      const next = { ...data, log: [...data.log, entry] };
-      persist(next);
-    },
-    [data, persist]
-  );
+  const addLogEntry = useCallback((entry: LogEntry) => {
+    persist({ ...data, log: [...data.log, entry] });
+  }, [data, persist]);
 
-  const setCurrentCycle = useCallback(
-    (n: number) => {
-      persist({ ...data, currentCycle: n });
-    },
-    [data, persist]
-  );
+  const setCurrentCycle = useCallback((n: number) => {
+    persist({ ...data, currentCycle: n });
+  }, [data, persist]);
 
-  const reload = useCallback(async () => {
-    const d = await loadData();
-    setData(d);
-  }, []);
+  const addExtraSet = useCallback((liftName: string, set: ExtraSet) => {
+    const current = data.extraSets[liftName] || [];
+    persist({ ...data, extraSets: { ...data.extraSets, [liftName]: [...current, set] } });
+  }, [data, persist]);
+
+  const removeExtraSet = useCallback((liftName: string, index: number) => {
+    const current = data.extraSets[liftName] || [];
+    persist({ ...data, extraSets: { ...data.extraSets, [liftName]: current.filter((_, i) => i !== index) } });
+  }, [data, persist]);
+
+  const reload = useCallback(async () => { const d = await loadData(); setData(d); }, []);
 
   const theme = data.settings.darkMode ? darkTheme : lightTheme;
-
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider
-      value={{ data, theme, updateSettings, updateLift, addLift, addLogEntry, setCurrentCycle, reload }}
-    >
+    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addLogEntry, setCurrentCycle, addExtraSet, removeExtraSet, reload }}>
       {children}
     </Ctx.Provider>
   );
