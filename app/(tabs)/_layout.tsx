@@ -20,7 +20,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Workout",
-          headerTitle: "Strength Cycle",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="flame-outline" size={size} color={color} />,
         }}
       />

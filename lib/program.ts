@@ -70,7 +70,7 @@ export function calcTM(oneRepMax: number, tmPercentage: number): number {
 }
 
 // Standard plate breakdown
-const PLATES = [45, 35, 25, 10, 5, 2.5, 1.25];
+const PLATES = [45, 35, 25, 10, 5, 2.5, 1.25, 1, 0.5, 0.25];
 const BAR_WEIGHT = 45;
 
 export function plateBreakdown(totalWeight: number): { plate: number; count: number }[] {
