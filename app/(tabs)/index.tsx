@@ -174,7 +174,7 @@ export default function WorkoutScreen() {
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.logBtnText}>Add to Log</Text>
         </TouchableOpacity>
-        <View style={{ height: 40 }} />
+        <View style={{ height: 8 }} />
       </ScrollView>
 
       {/* Weight Adjustment Modal */}
@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
   brandHeader: { alignItems: "center", paddingTop: 52, paddingBottom: 4 },
   brandText: { fontSize: 26, fontWeight: "900", letterSpacing: 4 },
   brandAccent: { fontSize: 14, fontWeight: "800", letterSpacing: 6, marginTop: -2 },
-  brandLine: { width: 36, height: 3, borderRadius: 2, marginTop: 4 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  brandLine: { width: 100, height: 3, borderRadius: 2, marginTop: 6 },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   arrowBtn: { padding: spacing.xs },
   headerCenter: { flex: 1, alignItems: "center" },
   liftName: { fontSize: 20, fontWeight: "800" },
@@ -272,8 +272,8 @@ const styles = StyleSheet.create({
   weekTab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, position: "relative" },
   weekText: { fontSize: 12, fontWeight: "500" },
   weekIndicator: { position: "absolute", bottom: 0, left: "20%", right: "20%", height: 3, borderRadius: 2 },
-  content: { padding: spacing.md, paddingTop: spacing.sm },
-  setRow: { borderRadius: borderRadius.md, padding: spacing.md - 2, marginBottom: spacing.sm, borderWidth: 1, flexDirection: "row", alignItems: "center", overflow: "hidden", position: "relative" },
+  content: { padding: spacing.md, paddingTop: spacing.md },
+  setRow: { borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm + 4, borderWidth: 1, flexDirection: "row", alignItems: "center", overflow: "hidden", position: "relative" },
   setLeft: { flex: 1 },
   setPerc: { fontSize: 14, fontWeight: "600" },
   lastReps: { fontSize: 11, marginTop: 1 },
@@ -284,13 +284,13 @@ const styles = StyleSheet.create({
   removeBtn: { position: "absolute", top: 6, right: 6 },
   addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, paddingVertical: 10, marginBottom: spacing.sm },
   addSetText: { fontSize: 13, fontWeight: "600" },
-  e1rmCard: { borderRadius: borderRadius.md, padding: spacing.lg, marginTop: spacing.xs, borderWidth: 1, alignItems: "center" },
+  e1rmCard: { borderRadius: borderRadius.md, padding: spacing.lg, marginTop: spacing.md, borderWidth: 1, alignItems: "center" },
   e1rmLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: spacing.sm },
   repCounter: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
   repBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   repCount: { fontSize: 34, fontWeight: "800", minWidth: 56, textAlign: "center" },
   e1rmValue: { fontSize: 15, fontWeight: "600", marginTop: spacing.md },
-  logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.sm },
+  logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.lg },
   logBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   modalContainer: { flex: 1 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md, paddingTop: 56 },
