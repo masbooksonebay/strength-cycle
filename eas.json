@@ -17,5 +17,14 @@
         "buildConfiguration": "Release"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6762101377",
+        "appleId": "markshurtliff@gmail.com",
+        "appleTeamId": "VCT64S7K6P"
+      }
+    }
   }
 }
