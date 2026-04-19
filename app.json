@@ -4,12 +4,12 @@
     "slug": "strength-cycle",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon-1024.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": false,
     "scheme": "strengthcycle",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/app-icon-1024.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/app-icon-1024.png",
         "backgroundColor": "#000000"
       },
       "package": "com.strengthcycle.app"
