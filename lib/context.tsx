@@ -1,6 +1,14 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AppData, DEFAULT_DATA, loadData, saveData, LogEntry, LiftData, Settings, ExtraSet } from "./store";
 import { darkTheme, lightTheme, Theme } from "../constants/theme";
+import {
+  WeightUnit,
+  DEFAULT_BAR,
+  DEFAULT_PRECISION,
+  defaultPlatesFor,
+  convertWeight,
+  precisionOptionsFor,
+} from "./plates";
 
 interface AppCtx {
   data: AppData;
@@ -12,6 +20,7 @@ interface AppCtx {
   setCurrentCycle: (n: number) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
   removeExtraSet: (liftName: string, index: number) => void;
+  changeUnits: (next: WeightUnit) => void;
   reload: () => Promise<void>;
 }
 
@@ -25,6 +34,7 @@ const Ctx = createContext<AppCtx>({
   setCurrentCycle: () => {},
   addExtraSet: () => {},
   removeExtraSet: () => {},
+  changeUnits: () => {},
   reload: async () => {},
 });
 
@@ -77,13 +87,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist({ ...data, extraSets: { ...data.extraSets, [liftName]: current.filter((_, i) => i !== index) } });
   }, [data, persist]);
 
+  const changeUnits = useCallback((next: WeightUnit) => {
+    const from = data.settings.units;
+    if (from === next) return;
+    const nextPrecision = DEFAULT_PRECISION[next];
+    const nextBar = DEFAULT_BAR[next];
+    const nextPlates = defaultPlatesFor(next);
+    const rounding = data.settings.rounding;
+
+    const lifts = data.lifts.map((l) => ({
+      ...l,
+      oneRepMax: convertWeight(l.oneRepMax, from, next, nextPrecision, rounding),
+    }));
+    const log = data.log.map((e) => ({
+      ...e,
+      weight: convertWeight(e.weight, from, next, nextPrecision, rounding),
+    }));
+
+    const currentPrecision = data.settings.precision;
+    const validForNext = precisionOptionsFor(next).includes(currentPrecision);
+
+    persist({
+      ...data,
+      lifts,
+      log,
+      settings: {
+        ...data.settings,
+        units: next,
+        barWeight: nextBar,
+        availablePlates: nextPlates,
+        precision: validForNext ? currentPrecision : nextPrecision,
+      },
+    });
+  }, [data, persist]);
+
   const reload = useCallback(async () => { const d = await loadData(); setData(d); }, []);
 
   const theme = data.settings.darkMode ? darkTheme : lightTheme;
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addLogEntry, setCurrentCycle, addExtraSet, removeExtraSet, reload }}>
+    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addLogEntry, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
       {children}
     </Ctx.Provider>
   );

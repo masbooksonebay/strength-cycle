@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 
-const PRO_FEATURES = ["Progress Log", "Additional Lifts", "Adjustable Set", "Plate Calculator"];
+const PRO_FEATURES = ["Progress Log", "Additional Lifts", "Adjustable Set"];
 
 export default function ProgressScreen() {
   const { data, theme } = useApp();

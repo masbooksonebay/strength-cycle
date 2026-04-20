@@ -1,4 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  WeightUnit,
+  RoundingMode,
+  DEFAULT_BAR,
+  DEFAULT_PRECISION,
+  defaultPlatesFor,
+} from "./plates";
 
 export interface LiftData {
   name: string;
@@ -25,7 +32,8 @@ export interface LogEntry {
 }
 
 export interface Settings {
-  weightPrecision: number;
+  precision: number;
+  rounding: RoundingMode;
   tmPercentage: number;
   preventSleep: boolean;
   markSetsAsDone: boolean;
@@ -35,6 +43,9 @@ export interface Settings {
   adjustableSet: boolean;
   plateCalculator: boolean;
   progressLog: boolean;
+  units: WeightUnit;
+  barWeight: number;
+  availablePlates: number[];
 }
 
 export interface AppData {
@@ -42,13 +53,14 @@ export interface AppData {
   log: LogEntry[];
   settings: Settings;
   currentCycle: number;
-  extraSets: Record<string, ExtraSet[]>; // keyed by lift name
+  extraSets: Record<string, ExtraSet[]>;
 }
 
 const STORAGE_KEY = "strength_cycle_data";
 
 export const DEFAULT_SETTINGS: Settings = {
-  weightPrecision: 2.5,
+  precision: DEFAULT_PRECISION.lb,
+  rounding: "nearest",
   tmPercentage: 90,
   preventSleep: true,
   markSetsAsDone: true,
@@ -56,8 +68,11 @@ export const DEFAULT_SETTINGS: Settings = {
   darkMode: true,
   additionalLifts: false,
   adjustableSet: false,
-  plateCalculator: false,
+  plateCalculator: true,
   progressLog: false,
+  units: "lb",
+  barWeight: DEFAULT_BAR.lb,
+  availablePlates: defaultPlatesFor("lb"),
 };
 
 export const DEFAULT_LIFTS: LiftData[] = [
@@ -75,12 +90,29 @@ export const DEFAULT_DATA: AppData = {
   extraSets: {},
 };
 
+function migrateSettings(raw: any): Settings {
+  const merged: any = { ...DEFAULT_SETTINGS, ...(raw || {}) };
+  if (raw && raw.weightPrecision !== undefined && raw.precision === undefined) {
+    merged.precision = raw.weightPrecision;
+  }
+  delete merged.weightPrecision;
+  if (merged.plateCalculator !== true) merged.plateCalculator = true;
+  if (!Array.isArray(merged.availablePlates)) {
+    merged.availablePlates = defaultPlatesFor(merged.units);
+  }
+  return merged as Settings;
+}
+
 export async function loadData(): Promise<AppData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_DATA, ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } };
+      return {
+        ...DEFAULT_DATA,
+        ...parsed,
+        settings: migrateSettings(parsed.settings),
+      };
     }
   } catch {}
   return DEFAULT_DATA;

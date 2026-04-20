@@ -6,6 +6,7 @@ import { spacing, borderRadius } from "../../constants/theme";
 
 export default function LogScreen() {
   const { data, theme } = useApp();
+  const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [search, setSearch] = useState("");
 
@@ -66,7 +67,7 @@ export default function LogScreen() {
                   </View>
                   <View style={styles.logRow}>
                     <Text style={[styles.logDetail, { color: theme.textSecondary }]}>
-                      {e.actualReps} reps @ {e.weight} lbs ({e.percentage}%)
+                      {e.actualReps} reps @ {e.weight} {unitLabel} ({e.percentage}%)
                     </Text>
                   </View>
                   {e.notes ? <Text style={[styles.logNotes, { color: theme.textSecondary }]}>{e.notes}</Text> : null}

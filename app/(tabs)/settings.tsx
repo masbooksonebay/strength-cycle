@@ -3,6 +3,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { useState } from "react";
+import {
+  BAR_PRESETS,
+  DEFAULT_PLATES_LB,
+  DEFAULT_PLATES_KG,
+  PRECISION_OPTIONS_LB,
+  PRECISION_OPTIONS_KG,
+  RoundingMode,
+  WeightUnit,
+  formatWeight,
+} from "../../lib/plates";
 
 function Section({ title, children, theme }: { title: string; children: React.ReactNode; theme: any }) {
   return (
@@ -29,7 +39,6 @@ function Row({ label, right, theme, last, info }: { label: string; right: React.
   );
 }
 
-const PRECISION_OPTIONS = [5, 2.5, 1, 0.5, 0.25];
 const TM_OPTIONS = [80, 85, 90, 95, 100];
 
 const GUIDE_TEXT = `5/3/1 is a strength training program created by Jim Wendler. It is built around four main barbell lifts and uses percentage-based loading to drive slow, consistent progress over time. The core philosophy: start lighter than you think you need to, progress slowly, and focus on long-term strength gains.
@@ -78,9 +87,16 @@ Warm-up Sets — Lighter sets before working sets to prepare the body.
 Cycle — One complete 4-week block (Weeks 1–4).
 TM Progression — The scheduled increase in Training Max after each completed cycle.`;
 
+const ROUNDING_LABELS: Record<RoundingMode, string> = {
+  down: "Always down",
+  nearest: "Nearest",
+  up: "Always up",
+};
+
 export default function SettingsScreen() {
-  const { data, theme, updateSettings, updateLift } = useApp();
+  const { data, theme, updateSettings, updateLift, changeUnits } = useApp();
   const s = data.settings;
+  const unitLabel = s.units === "lb" ? "lbs" : "kg";
   const [editingRM, setEditingRM] = useState<string | null>(null);
   const [rmValue, setRmValue] = useState("");
   const [showPrecision, setShowPrecision] = useState(false);
@@ -88,9 +104,49 @@ export default function SettingsScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restValue, setRestValue] = useState("");
   const [showGuide, setShowGuide] = useState(false);
+  const [showBarWeight, setShowBarWeight] = useState(false);
+  const [showPlates, setShowPlates] = useState(false);
+  const [customBarVal, setCustomBarVal] = useState("");
 
   const startEditRM = (lift: string, current: number) => { setEditingRM(lift); setRmValue(String(current)); };
   const saveRM = () => { if (editingRM && rmValue) { const v = parseFloat(rmValue); if (v > 0) updateLift(editingRM, { oneRepMax: v }); } setEditingRM(null); };
+
+  const onUnitsChange = (next: WeightUnit) => {
+    if (next === s.units) return;
+    Alert.alert(
+      `Switch to ${next}?`,
+      "All stored weights will be converted to the nearest loadable value in the new unit.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Switch", onPress: () => changeUnits(next) },
+      ],
+    );
+  };
+
+  const precisionOptions = s.units === "lb" ? PRECISION_OPTIONS_LB : PRECISION_OPTIONS_KG;
+  const defaultPlates = s.units === "lb" ? DEFAULT_PLATES_LB : DEFAULT_PLATES_KG;
+  const barPresets = BAR_PRESETS[s.units];
+  const currentBarPresetLabel = barPresets.find((p) => p.weight === s.barWeight)?.label || `Custom (${formatWeight(s.barWeight)})`;
+
+  const togglePlate = (p: number) => {
+    const has = s.availablePlates.includes(p);
+    const next = has ? s.availablePlates.filter((x) => x !== p) : [...s.availablePlates, p];
+    next.sort((a, b) => b - a);
+    updateSettings({ availablePlates: next });
+  };
+
+  const setBar = (w: number) => {
+    updateSettings({ barWeight: w });
+    setShowBarWeight(false);
+  };
+
+  const applyCustomBar = () => {
+    const v = parseFloat(customBarVal);
+    if (v > 0) {
+      setBar(v);
+      setCustomBarVal("");
+    }
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
@@ -104,28 +160,63 @@ export default function SettingsScreen() {
               </View>
             ) : (
               <TouchableOpacity onPress={() => startEditRM(lift.name, lift.oneRepMax)} style={styles.tapRow}>
-                <Text style={[styles.rmValue, { color: theme.accent }]}>{lift.oneRepMax} lbs</Text>
+                <Text style={[styles.rmValue, { color: theme.accent }]}>{lift.oneRepMax} {unitLabel}</Text>
               </TouchableOpacity>
             )} />
         ))}
       </Section>
 
-      <Section title="Preferences" theme={theme}>
-        <Row label="Weight Precision" theme={theme} right={
+      <Section title="Plate Calculator" theme={theme}>
+        <Row label="Units" theme={theme} right={
+          <View style={styles.unitToggle}>
+            {(["lb", "kg"] as const).map((u) => (
+              <TouchableOpacity key={u} onPress={() => onUnitsChange(u)} style={[styles.unitBtn, s.units === u && { backgroundColor: theme.accent, borderColor: theme.accent }, { borderColor: theme.border }]}>
+                <Text style={[styles.unitBtnText, { color: s.units === u ? "#fff" : theme.text }]}>{u.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        } />
+        <Row label="Bar Weight" theme={theme} right={
+          <TouchableOpacity onPress={() => setShowBarWeight(true)} style={styles.tapRow}>
+            <Text style={[styles.valueText, { color: theme.accent }]}>{currentBarPresetLabel} · {formatWeight(s.barWeight)} {unitLabel}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+        } />
+        <Row label="Available Plates" theme={theme} right={
+          <TouchableOpacity onPress={() => setShowPlates(true)} style={styles.tapRow}>
+            <Text style={[styles.valueText, { color: theme.accent }]}>{s.availablePlates.length} selected</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+        } />
+        <Row label="Precision" theme={theme} last right={
           <TouchableOpacity onPress={() => setShowPrecision(!showPrecision)} style={styles.tapRow}>
-            <Text style={[styles.valueText, { color: theme.accent }]}>{s.weightPrecision} lbs</Text>
+            <Text style={[styles.valueText, { color: theme.accent }]}>{formatWeight(s.precision)} {unitLabel} · {ROUNDING_LABELS[s.rounding]}</Text>
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
           </TouchableOpacity>
         } />
         {showPrecision && (
-          <View style={[styles.picker, { borderTopColor: theme.border }]}>
-            {PRECISION_OPTIONS.map((v) => (
-              <TouchableOpacity key={v} style={[styles.pickerOption, s.weightPrecision === v && { backgroundColor: theme.accent }]} onPress={() => { updateSettings({ weightPrecision: v }); setShowPrecision(false); }}>
-                <Text style={[styles.pickerText, { color: s.weightPrecision === v ? "#fff" : theme.text }]}>{v} lbs</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={[styles.pickerPane, { borderTopColor: theme.border }]}>
+            <Text style={[styles.pickerLabel, { color: theme.textSecondary }]}>INCREMENT</Text>
+            <View style={styles.picker}>
+              {precisionOptions.map((v) => (
+                <TouchableOpacity key={v} style={[styles.pickerOption, s.precision === v && { backgroundColor: theme.accent }, { borderColor: theme.border }]} onPress={() => updateSettings({ precision: v })}>
+                  <Text style={[styles.pickerText, { color: s.precision === v ? "#fff" : theme.text }]}>{formatWeight(v)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={[styles.pickerLabel, { color: theme.textSecondary, marginTop: spacing.md }]}>ROUNDING DIRECTION</Text>
+            <View style={styles.picker}>
+              {(["down", "nearest", "up"] as const).map((m) => (
+                <TouchableOpacity key={m} style={[styles.pickerOption, s.rounding === m && { backgroundColor: theme.accent }, { borderColor: theme.border }]} onPress={() => updateSettings({ rounding: m })}>
+                  <Text style={[styles.pickerText, { color: s.rounding === m ? "#fff" : theme.text }]}>{ROUNDING_LABELS[m]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
+      </Section>
+
+      <Section title="Preferences" theme={theme}>
         <Row label="TM Percentage" theme={theme} right={
           <TouchableOpacity onPress={() => setShowTMPct(!showTMPct)} style={styles.tapRow}>
             <Text style={[styles.valueText, { color: theme.accent }]}>{s.tmPercentage}%</Text>
@@ -133,9 +224,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         } />
         {showTMPct && (
-          <View style={[styles.picker, { borderTopColor: theme.border }]}>
+          <View style={[styles.picker, { borderTopColor: theme.border, padding: spacing.md, borderTopWidth: 1 }]}>
             {TM_OPTIONS.map((v) => (
-              <TouchableOpacity key={v} style={[styles.pickerOption, s.tmPercentage === v && { backgroundColor: theme.accent }]} onPress={() => { updateSettings({ tmPercentage: v }); setShowTMPct(false); }}>
+              <TouchableOpacity key={v} style={[styles.pickerOption, s.tmPercentage === v && { backgroundColor: theme.accent }, { borderColor: theme.border }]} onPress={() => { updateSettings({ tmPercentage: v }); setShowTMPct(false); }}>
                 <Text style={[styles.pickerText, { color: s.tmPercentage === v ? "#fff" : theme.text }]}>{v}%</Text>
               </TouchableOpacity>
             ))}
@@ -169,7 +260,6 @@ export default function SettingsScreen() {
         <Row label="PRO Bundle (all features)" theme={theme} right={<Text style={[styles.priceText, { color: theme.accent }]}>$4.99</Text>} />
         <Row label="Additional Lifts" theme={theme} info="Add unlimited custom lifts beyond the 4 main lifts. Custom lifts appear alongside your main lifts and are tracked in log and progress." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
         <Row label="Adjustable Set" theme={theme} info="Add a final custom set to any lift with your own percentage and rep count. Perfect for joker sets, Boring But Big, or back-off work." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
-        <Row label="Plate Calculator" theme={theme} info="Shows exact plate breakdown for every set based on a standard 45 lb barbell. Plates: 45, 35, 25, 10, 5, 2.5, 1.25, 1, 0.5, 0.25 lbs per side." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
         <Row label="Progress Log" theme={theme} info="Unlock the Progress tab with Estimated 1RM and Training Max charts over time for every lift. Includes time filters and calendar view." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
         <Row label="Restore Purchases" theme={theme} last right={<Ionicons name="refresh" size={18} color={theme.textSecondary} />} />
       </Section>
@@ -198,6 +288,63 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={() => { const v = parseInt(restValue, 10); if (v > 0) updateSettings({ restTimerDuration: v }); setShowRestTimer(false); }} style={[styles.miniBtn, { backgroundColor: theme.accent }]}><Text style={[styles.miniBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      {/* Bar Weight Modal */}
+      <Modal visible={showBarWeight} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.guideContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.guideHeader}>
+            <Text style={[styles.guideTitle, { color: theme.text }]}>Bar Weight</Text>
+            <TouchableOpacity onPress={() => setShowBarWeight(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.guideContent}>
+            {barPresets.map((p) => (
+              <TouchableOpacity key={p.label} style={[styles.listRow, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setBar(p.weight)}>
+                <Text style={[styles.listRowLabel, { color: theme.text }]}>{p.label}</Text>
+                <View style={styles.tapRow}>
+                  <Text style={[styles.valueText, { color: theme.accent }]}>{formatWeight(p.weight)} {unitLabel}</Text>
+                  {s.barWeight === p.weight && <Ionicons name="checkmark" size={20} color={theme.accent} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+            <Text style={[styles.pickerLabel, { color: theme.textSecondary, marginTop: spacing.md }]}>CUSTOM</Text>
+            <View style={[styles.listRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <TextInput
+                style={[styles.customInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
+                value={customBarVal}
+                onChangeText={setCustomBarVal}
+                placeholder={`e.g. ${s.units === "lb" ? "35" : "15"}`}
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity onPress={applyCustomBar} style={[styles.applyBtn, { backgroundColor: theme.accent }]}>
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Set</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Plates Modal */}
+      <Modal visible={showPlates} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.guideContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.guideHeader}>
+            <Text style={[styles.guideTitle, { color: theme.text }]}>Available Plates</Text>
+            <TouchableOpacity onPress={() => setShowPlates(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.guideContent}>
+            <Text style={[styles.hint, { color: theme.textSecondary }]}>Toggle the plates you own. Disabled plates won't be used in the calculator.</Text>
+            {defaultPlates.map((p) => {
+              const enabled = s.availablePlates.includes(p);
+              return (
+                <TouchableOpacity key={p} style={[styles.listRow, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => togglePlate(p)}>
+                  <Text style={[styles.listRowLabel, { color: theme.text }]}>{formatWeight(p)} {unitLabel}</Text>
+                  <Switch value={enabled} onValueChange={() => togglePlate(p)} trackColor={{ true: theme.accent }} />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </Modal>
 
@@ -236,8 +383,10 @@ const styles = StyleSheet.create({
   rmEdit: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   rmInput: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, fontSize: 16, fontWeight: "700", width: 80, textAlign: "center" },
   rmValue: { fontSize: 16, fontWeight: "700" },
-  picker: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, padding: spacing.md, borderTopWidth: 1 },
-  pickerOption: { borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  pickerPane: { padding: spacing.md, borderTopWidth: 1 },
+  pickerLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginBottom: spacing.sm },
+  picker: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  pickerOption: { borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1 },
   pickerText: { fontSize: 14, fontWeight: "600" },
   version: { textAlign: "center", fontSize: 12, marginTop: spacing.md },
   overlayCenter: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
@@ -252,4 +401,12 @@ const styles = StyleSheet.create({
   guideTitle: { fontSize: 22, fontWeight: "800" },
   guideContent: { padding: spacing.lg },
   guideText: { fontSize: 14, lineHeight: 22 },
+  unitToggle: { flexDirection: "row", gap: spacing.xs },
+  unitBtn: { paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: borderRadius.sm, borderWidth: 1 },
+  unitBtnText: { fontSize: 13, fontWeight: "700", letterSpacing: 1 },
+  listRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.sm, gap: spacing.sm },
+  listRowLabel: { fontSize: 15, fontWeight: "600" },
+  customInput: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: 16, fontWeight: "600" },
+  applyBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, borderRadius: borderRadius.sm },
+  hint: { fontSize: 13, marginBottom: spacing.md, lineHeight: 18 },
 });

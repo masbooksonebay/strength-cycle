@@ -1,5 +1,7 @@
 // 5/3/1 Program Logic
 
+import { roundToPrecision, RoundingMode } from "./plates";
+
 export const MAIN_LIFTS = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as const;
 export type MainLift = (typeof MAIN_LIFTS)[number];
 
@@ -8,7 +10,7 @@ export type Week = (typeof WEEKS)[number];
 
 export interface ProgramSet {
   percentage: number;
-  reps: number | string; // string for AMRAP like "5+"
+  reps: number | string;
   isWarmup: boolean;
   isAmrap: boolean;
 }
@@ -43,12 +45,12 @@ export const WEEK_SETS: Record<Week, ProgramSet[]> = {
   ],
 };
 
-export function roundWeight(weight: number, precision: number): number {
-  return Math.round(weight / precision) * precision;
+export function roundWeight(weight: number, precision: number, mode: RoundingMode = "nearest"): number {
+  return roundToPrecision(weight, precision, mode);
 }
 
-export function calcWeight(tm: number, percentage: number, precision: number): number {
-  return roundWeight(tm * (percentage / 100), precision);
+export function calcWeight(tm: number, percentage: number, precision: number, mode: RoundingMode = "nearest"): number {
+  return roundToPrecision(tm * (percentage / 100), precision, mode);
 }
 
 export function calcE1RM(weight: number, reps: number): number {
@@ -67,22 +69,4 @@ export function tmProgression(lift: string): number {
 
 export function calcTM(oneRepMax: number, tmPercentage: number): number {
   return Math.round(oneRepMax * (tmPercentage / 100));
-}
-
-// Standard plate breakdown
-const PLATES = [45, 35, 25, 10, 5, 2.5, 1.25, 1, 0.5, 0.25];
-const BAR_WEIGHT = 45;
-
-export function plateBreakdown(totalWeight: number): { plate: number; count: number }[] {
-  let perSide = (totalWeight - BAR_WEIGHT) / 2;
-  if (perSide <= 0) return [];
-  const result: { plate: number; count: number }[] = [];
-  for (const plate of PLATES) {
-    const count = Math.floor(perSide / plate);
-    if (count > 0) {
-      result.push({ plate, count });
-      perSide -= count * plate;
-    }
-  }
-  return result;
 }
