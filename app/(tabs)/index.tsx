@@ -5,12 +5,15 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WEEKS, WEEK_SETS, calcWeight, calcE1RM, calcTM } from "../../lib/program";
-import { getLastReps, generateId, LogEntry } from "../../lib/store";
+import { getLastReps, generateId, WorkoutLog, SetLog } from "../../lib/store";
 import { calculatePlates, formatPlateBreakdown, formatWeight } from "../../lib/plates";
 import { spacing, borderRadius } from "../../constants/theme";
+import { TimerPill, TimerStartButton } from "../../components/TimerPill";
+import { useTimer } from "../../lib/timer";
 
 export default function WorkoutScreen() {
-  const { data, theme, addLogEntry, addExtraSet, removeExtraSet, addLift, updateLift, updateSettings } = useApp();
+  const { data, theme, addWorkout, addExtraSet, removeExtraSet, addLift, updateLift, updateSettings } = useApp();
+  const timer = useTimer();
   const [liftIdx, setLiftIdx] = useState(0);
   const [weekIdx, setWeekIdx] = useState(0);
   const [logModal, setLogModal] = useState(false);
@@ -86,8 +89,24 @@ export default function WorkoutScreen() {
 
   const handleLog = () => {
     if (!lastAmrapSet) return;
-    const entry: LogEntry = { id: generateId(), date: new Date().toISOString(), exercise: lift.name, week, percentage: lastAmrapSet.percentage, weight: lastAmrapWeight, targetReps: String(lastAmrapSet.reps), actualReps: amrapReps, notes: logNotes };
-    addLogEntry(entry);
+    const sets: SetLog[] = [{
+      percentage: lastAmrapSet.percentage,
+      weight: lastAmrapWeight,
+      targetReps: String(lastAmrapSet.reps),
+      actualReps: amrapReps,
+      isAmrap: !!lastAmrapSet.isAmrap,
+      isWarmup: false,
+    }];
+    const workout: WorkoutLog = {
+      id: generateId(),
+      date: new Date().toISOString(),
+      exercise: lift.name,
+      week,
+      cycle: data.currentCycle,
+      sets,
+      notes: logNotes,
+    };
+    addWorkout(workout);
     setLogModal(false);
     setLogNotes("");
     Alert.alert("Logged", `${lift.name} — ${week} — ${amrapReps} reps @ ${lastAmrapWeight} ${unitLabel}`);
@@ -133,7 +152,7 @@ export default function WorkoutScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {programSets.map((set, i) => {
           const weight = calcWeight(tm, set.percentage, precision, rounding);
-          const lastReps = getLastReps(data.log, lift.name, week, set.percentage);
+          const lastReps = getLastReps(data.workouts, lift.name, week, set.percentage);
           const isLastAmrap = i === programSets.length - 1 && set.isAmrap;
           const plates = calculatePlates(weight, s.barWeight, s.availablePlates, precision, rounding);
           const breakdown = formatPlateBreakdown(plates.plates);
@@ -203,8 +222,15 @@ export default function WorkoutScreen() {
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.logBtnText}>Add to Log</Text>
         </TouchableOpacity>
-        <View style={{ height: 8 }} />
+
+        <View style={{ alignItems: "center", marginTop: spacing.sm }}>
+          <TimerStartButton />
+        </View>
+
+        <View style={{ height: timer.visible ? 72 : 8 }} />
       </ScrollView>
+
+      <TimerPill />
 
       {/* Weight Adjustment Modal */}
       <Modal visible={weightModal} animationType="slide" presentationStyle="pageSheet">

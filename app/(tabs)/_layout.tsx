@@ -25,24 +25,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="log"
+        name="track"
         options={{
-          title: "Log",
-          tabBarIcon: ({ color, size }) => <Ionicons name="document-text-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="timer"
-        options={{
-          title: "Timer",
-          tabBarIcon: ({ color, size }) => <Ionicons name="timer-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: "Progress",
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart-outline" size={size} color={color} />,
+          title: "Track",
+          tabBarIcon: ({ color, size }) => <Ionicons name="analytics-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

@@ -19,15 +19,22 @@ export interface ExtraSet {
   reps: number;
 }
 
-export interface LogEntry {
-  id: string;
-  date: string;
-  exercise: string;
-  week: string;
+export interface SetLog {
   percentage: number;
   weight: number;
   targetReps: string;
   actualReps: number;
+  isAmrap: boolean;
+  isWarmup: boolean;
+}
+
+export interface WorkoutLog {
+  id: string;
+  date: string;
+  exercise: string;
+  week: string;
+  cycle: number;
+  sets: SetLog[];
   notes: string;
 }
 
@@ -50,7 +57,7 @@ export interface Settings {
 
 export interface AppData {
   lifts: LiftData[];
-  log: LogEntry[];
+  workouts: WorkoutLog[];
   settings: Settings;
   currentCycle: number;
   extraSets: Record<string, ExtraSet[]>;
@@ -84,7 +91,7 @@ export const DEFAULT_LIFTS: LiftData[] = [
 
 export const DEFAULT_DATA: AppData = {
   lifts: DEFAULT_LIFTS,
-  log: [],
+  workouts: [],
   settings: DEFAULT_SETTINGS,
   currentCycle: 1,
   extraSets: {},
@@ -103,14 +110,54 @@ function migrateSettings(raw: any): Settings {
   return merged as Settings;
 }
 
+function migrateWorkouts(parsed: any): WorkoutLog[] {
+  if (Array.isArray(parsed.workouts)) return parsed.workouts;
+  if (!Array.isArray(parsed.log) || parsed.log.length === 0) return [];
+  const currentCycle = typeof parsed.currentCycle === "number" ? parsed.currentCycle : 1;
+  const groups = new Map<string, any[]>();
+  for (const e of parsed.log) {
+    if (!e || typeof e !== "object") continue;
+    const dateKey = String(e.date || "").slice(0, 10);
+    const key = `${dateKey}|${e.exercise}|${e.week}`;
+    const arr = groups.get(key) || [];
+    arr.push(e);
+    groups.set(key, arr);
+  }
+  const out: WorkoutLog[] = [];
+  for (const group of groups.values()) {
+    const first = group[0];
+    out.push({
+      id: first.id || `${first.date}-${first.exercise}`,
+      date: first.date,
+      exercise: first.exercise,
+      week: first.week,
+      cycle: currentCycle,
+      sets: group.map((e) => ({
+        percentage: e.percentage,
+        weight: e.weight,
+        targetReps: String(e.targetReps ?? e.actualReps ?? ""),
+        actualReps: Number(e.actualReps) || 0,
+        isAmrap: typeof e.targetReps === "string" && e.targetReps.endsWith("+"),
+        isWarmup: false,
+      })),
+      notes: group.map((e) => e.notes).filter(Boolean).join(" · "),
+    });
+  }
+  out.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return out;
+}
+
 export async function loadData(): Promise<AppData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const workouts = migrateWorkouts(parsed);
+      const { log: _legacyLog, ...rest } = parsed;
       return {
         ...DEFAULT_DATA,
-        ...parsed,
+        ...rest,
+        workouts,
         settings: migrateSettings(parsed.settings),
       };
     }
@@ -133,11 +180,12 @@ export async function importData(json: string): Promise<AppData> {
   return data;
 }
 
-export function getLastReps(log: LogEntry[], exercise: string, week: string, percentage: number): number | null {
-  for (let i = log.length - 1; i >= 0; i--) {
-    const e = log[i];
-    if (e.exercise === exercise && e.week === week && e.percentage === percentage) {
-      return e.actualReps;
+export function getLastReps(workouts: WorkoutLog[], exercise: string, week: string, percentage: number): number | null {
+  for (let i = workouts.length - 1; i >= 0; i--) {
+    const w = workouts[i];
+    if (w.exercise !== exercise || w.week !== week) continue;
+    for (const s of w.sets) {
+      if (s.percentage === percentage && s.actualReps > 0) return s.actualReps;
     }
   }
   return null;

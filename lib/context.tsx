@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { AppData, DEFAULT_DATA, loadData, saveData, LogEntry, LiftData, Settings, ExtraSet } from "./store";
+import { AppData, DEFAULT_DATA, loadData, saveData, WorkoutLog, LiftData, Settings, ExtraSet } from "./store";
 import { darkTheme, lightTheme, Theme } from "../constants/theme";
 import {
   WeightUnit,
@@ -9,6 +9,7 @@ import {
   convertWeight,
   precisionOptionsFor,
 } from "./plates";
+import { TimerProvider } from "./timer";
 
 interface AppCtx {
   data: AppData;
@@ -16,7 +17,8 @@ interface AppCtx {
   updateSettings: (s: Partial<Settings>) => void;
   updateLift: (name: string, updates: Partial<LiftData>) => void;
   addLift: (lift: LiftData) => void;
-  addLogEntry: (entry: LogEntry) => void;
+  addWorkout: (workout: WorkoutLog) => void;
+  deleteWorkout: (id: string) => void;
   setCurrentCycle: (n: number) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
   removeExtraSet: (liftName: string, index: number) => void;
@@ -30,7 +32,8 @@ const Ctx = createContext<AppCtx>({
   updateSettings: () => {},
   updateLift: () => {},
   addLift: () => {},
-  addLogEntry: () => {},
+  addWorkout: () => {},
+  deleteWorkout: () => {},
   setCurrentCycle: () => {},
   addExtraSet: () => {},
   removeExtraSet: () => {},
@@ -69,8 +72,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist({ ...data, lifts: [...data.lifts, lift] });
   }, [data, persist]);
 
-  const addLogEntry = useCallback((entry: LogEntry) => {
-    persist({ ...data, log: [...data.log, entry] });
+  const addWorkout = useCallback((workout: WorkoutLog) => {
+    persist({ ...data, workouts: [...data.workouts, workout] });
+  }, [data, persist]);
+
+  const deleteWorkout = useCallback((id: string) => {
+    persist({ ...data, workouts: data.workouts.filter((w) => w.id !== id) });
   }, [data, persist]);
 
   const setCurrentCycle = useCallback((n: number) => {
@@ -99,9 +106,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...l,
       oneRepMax: convertWeight(l.oneRepMax, from, next, nextPrecision, rounding),
     }));
-    const log = data.log.map((e) => ({
-      ...e,
-      weight: convertWeight(e.weight, from, next, nextPrecision, rounding),
+    const workouts = data.workouts.map((w) => ({
+      ...w,
+      sets: w.sets.map((s) => ({
+        ...s,
+        weight: convertWeight(s.weight, from, next, nextPrecision, rounding),
+      })),
     }));
 
     const currentPrecision = data.settings.precision;
@@ -110,7 +120,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist({
       ...data,
       lifts,
-      log,
+      workouts,
       settings: {
         ...data.settings,
         units: next,
@@ -127,8 +137,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addLogEntry, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
-      {children}
+    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
+      <TimerProvider defaultDuration={data.settings.restTimerDuration}>
+        {children}
+      </TimerProvider>
     </Ctx.Provider>
   );
 }
