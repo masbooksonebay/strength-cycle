@@ -29,7 +29,7 @@ export function CurrentSubview() {
   const lift = lifts[liftIdx] || lifts[0];
   const week = WEEKS[weekIdx];
   const programSets = WEEK_SETS[week];
-  const tm = calcTM(lift.oneRepMax, s.tmPercentage);
+  const tm = lift.trainingMax ?? calcTM(lift.oneRepMax, s.tmPercentage);
 
   useEffect(() => {
     setSets(programSets.map((ps) => ({
@@ -41,7 +41,7 @@ export function CurrentSubview() {
       actualReps: "",
       done: false,
     })));
-  }, [liftIdx, weekIdx, lift.oneRepMax, s.tmPercentage, s.precision, s.rounding]);
+  }, [liftIdx, weekIdx, lift.oneRepMax, lift.trainingMax, s.tmPercentage, s.precision, s.rounding]);
 
   const updateSet = (i: number, patch: Partial<EditableSet>) => {
     setSets((prev) => prev.map((x, idx) => idx === i ? { ...x, ...patch } : x));

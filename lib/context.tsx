@@ -120,6 +120,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const lifts = data.lifts.map((l) => ({
       ...l,
       oneRepMax: convertWeight(l.oneRepMax, from, next, nextPrecision, rounding),
+      trainingMax: l.trainingMax !== undefined ? convertWeight(l.trainingMax, from, next, nextPrecision, rounding) : undefined,
     }));
     const workouts = data.workouts.map((w) => ({
       ...w,

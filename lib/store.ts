@@ -12,6 +12,7 @@ export interface LiftData {
   oneRepMax: number;
   notes: string;
   isCustom: boolean;
+  trainingMax?: number;
 }
 
 export interface ExtraSet {

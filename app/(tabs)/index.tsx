@@ -21,9 +21,10 @@ export default function WorkoutScreen() {
   const [logNotes, setLogNotes] = useState("");
   const [addLiftModal, setAddLiftModal] = useState(false);
   const [newLiftName, setNewLiftName] = useState("");
-  const [weightModal, setWeightModal] = useState(false);
-  const [editRM, setEditRM] = useState(0);
-  const [editTMPct, setEditTMPct] = useState(90);
+  const [rmPillModal, setRmPillModal] = useState(false);
+  const [tmPillModal, setTmPillModal] = useState(false);
+  const [pillRmInput, setPillRmInput] = useState("");
+  const [pillTmInput, setPillTmInput] = useState("");
   const [plateModal, setPlateModal] = useState(false);
   const [plateModalWeight, setPlateModalWeight] = useState<number | null>(null);
   const [plateModalLabel, setPlateModalLabel] = useState<string>("");
@@ -37,10 +38,8 @@ export default function WorkoutScreen() {
   const rounding = s.rounding;
   const units = s.units;
   const unitLabel = units === "lb" ? "lbs" : "kg";
-  const tm = calcTM(lift.oneRepMax, s.tmPercentage);
+  const tm = lift.trainingMax ?? calcTM(lift.oneRepMax, s.tmPercentage);
   const extras = data.extraSets[lift.name] || [];
-
-  const previewTM = calcTM(editRM, editTMPct);
 
   const swipeLift = (dir: 1 | -1) => {
     const next = liftIdx + dir;
@@ -65,22 +64,30 @@ export default function WorkoutScreen() {
     setLiftIdx(lifts.length);
   };
 
-  const openWeightModal = () => {
-    setEditRM(lift.oneRepMax);
-    setEditTMPct(s.tmPercentage);
-    setWeightModal(true);
-  };
-
   const openPlateModal = (weight: number, label: string) => {
     setPlateModalWeight(weight);
     setPlateModalLabel(label);
     setPlateModal(true);
   };
 
-  const saveWeightModal = () => {
-    updateLift(lift.name, { oneRepMax: editRM });
-    if (editTMPct !== s.tmPercentage) updateSettings({ tmPercentage: editTMPct });
-    setWeightModal(false);
+  const openRmPill = () => { setPillRmInput(String(lift.oneRepMax)); setRmPillModal(true); };
+  const openTmPill = () => { setPillTmInput(String(tm)); setTmPillModal(true); };
+
+  const saveRmPill = () => {
+    const v = parseFloat(pillRmInput);
+    if (v > 0) updateLift(lift.name, { oneRepMax: v });
+    setRmPillModal(false);
+  };
+
+  const saveTmPill = () => {
+    const v = parseFloat(pillTmInput);
+    if (v > 0) updateLift(lift.name, { trainingMax: v });
+    setTmPillModal(false);
+  };
+
+  const resetTmOverride = () => {
+    updateLift(lift.name, { trainingMax: undefined });
+    setTmPillModal(false);
   };
 
   const lastAmrapSet = programSets.filter((set) => !set.isWarmup).slice(-1)[0];
@@ -131,9 +138,18 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={[styles.liftName, { color: theme.text }]}>{lift.name}</Text>
-          <TouchableOpacity onPress={openWeightModal}>
-            <Text style={[styles.tmLabel, { color: theme.accent }]}>1RM: {lift.oneRepMax} | TM: {tm} {unitLabel}</Text>
-          </TouchableOpacity>
+          <View style={styles.pillRow}>
+            <TouchableOpacity onPress={openRmPill} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <Text style={[styles.headerPillLabel, { color: theme.textSecondary }]}>1RM</Text>
+              <Text style={[styles.headerPillValue, { color: theme.text }]}>{lift.oneRepMax}</Text>
+              <Text style={[styles.headerPillUnit, { color: theme.textSecondary }]}>{unitLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openTmPill} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+              <Text style={[styles.headerPillLabel, { color: theme.textSecondary }]}>TM</Text>
+              <Text style={[styles.headerPillValue, { color: theme.accent }]}>{tm}</Text>
+              <Text style={[styles.headerPillUnit, { color: theme.textSecondary }]}>{unitLabel}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <TouchableOpacity onPress={() => swipeLift(1)} style={styles.arrowBtn}>
           <Ionicons name="chevron-forward" size={28} color={theme.textSecondary} />
@@ -232,38 +248,52 @@ export default function WorkoutScreen() {
 
       <TimerPill />
 
-      {/* Weight Adjustment Modal */}
-      <Modal visible={weightModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>{lift.name}</Text>
-            <TouchableOpacity onPress={() => setWeightModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+      {/* 1RM Pill Modal */}
+      <Modal visible={rmPillModal} transparent animationType="fade" onRequestClose={() => setRmPillModal(false)}>
+        <View style={styles.pillOverlay}>
+          <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit 1RM — {lift.name}</Text>
+            <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Your estimated one rep max ({unitLabel})</Text>
+            <TextInput
+              style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
+              value={pillRmInput}
+              onChangeText={setPillRmInput}
+              keyboardType="numeric"
+              autoFocus
+              onSubmitEditing={saveRmPill}
+            />
+            <View style={styles.pillBtnRow}>
+              <TouchableOpacity onPress={() => setRmPillModal(false)} style={[styles.pillBtn, { borderColor: theme.border }]}><Text style={[styles.pillBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity onPress={saveRmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
+            </View>
           </View>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>1 Rep Max</Text>
-            <View style={styles.adjustRow}>
-              <TouchableOpacity onPress={() => setEditRM(Math.max(0, editRM - 5))} style={[styles.adjBtn, { borderColor: theme.border }]}><Text style={[styles.adjText, { color: theme.text }]}>-5</Text></TouchableOpacity>
-              <TextInput style={[styles.adjInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={String(editRM)} onChangeText={(t) => setEditRM(parseFloat(t) || 0)} keyboardType="numeric" />
-              <TouchableOpacity onPress={() => setEditRM(editRM + 5)} style={[styles.adjBtn, { borderColor: theme.border }]}><Text style={[styles.adjText, { color: theme.text }]}>+5</Text></TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* TM Pill Modal */}
+      <Modal visible={tmPillModal} transparent animationType="fade" onRequestClose={() => setTmPillModal(false)}>
+        <View style={styles.pillOverlay}>
+          <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit Training Max — {lift.name}</Text>
+            <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Default: {calcTM(lift.oneRepMax, s.tmPercentage)} {unitLabel} ({s.tmPercentage}% of 1RM)</Text>
+            <TextInput
+              style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
+              value={pillTmInput}
+              onChangeText={setPillTmInput}
+              keyboardType="numeric"
+              autoFocus
+              onSubmitEditing={saveTmPill}
+            />
+            {lift.trainingMax !== undefined && (
+              <TouchableOpacity onPress={resetTmOverride} style={styles.pillResetLink}>
+                <Text style={[styles.pillResetText, { color: theme.accent }]}>Reset to default ({s.tmPercentage}% of 1RM)</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.pillBtnRow}>
+              <TouchableOpacity onPress={() => setTmPillModal(false)} style={[styles.pillBtn, { borderColor: theme.border }]}><Text style={[styles.pillBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity onPress={saveTmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
-
-            <Text style={[styles.modalLabel, { color: theme.textSecondary, marginTop: spacing.lg }]}>TM Percentage</Text>
-            <View style={styles.adjustRow}>
-              <TouchableOpacity onPress={() => setEditTMPct(Math.max(50, editTMPct - 5))} style={[styles.adjBtn, { borderColor: theme.border }]}><Text style={[styles.adjText, { color: theme.text }]}>-5</Text></TouchableOpacity>
-              <Text style={[styles.adjValue, { color: theme.accent }]}>{editTMPct}%</Text>
-              <TouchableOpacity onPress={() => setEditTMPct(Math.min(100, editTMPct + 5))} style={[styles.adjBtn, { borderColor: theme.border }]}><Text style={[styles.adjText, { color: theme.text }]}>+5</Text></TouchableOpacity>
-            </View>
-
-            <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>PREVIEW — TM: {previewTM} {unitLabel}</Text>
-            {programSets.filter((set) => !set.isWarmup).map((set, i) => (
-              <View key={i} style={[styles.previewRow, { borderBottomColor: theme.border }]}>
-                <Text style={[styles.previewPerc, { color: theme.textSecondary }]}>{set.percentage}% x{set.reps}</Text>
-                <Text style={[styles.previewWeight, { color: theme.text }]}>{calcWeight(previewTM, set.percentage, precision, rounding)} {unitLabel}</Text>
-              </View>
-            ))}
-
-            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.accent }]} onPress={saveWeightModal}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
-          </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -442,6 +472,21 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: "center" },
   liftName: { fontSize: 20, fontWeight: "800" },
   tmLabel: { fontSize: 13, fontWeight: "600", marginTop: 1 },
+  pillRow: { flexDirection: "row", gap: spacing.sm, marginTop: 6 },
+  headerPill: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4 },
+  headerPillLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
+  headerPillValue: { fontSize: 15, fontWeight: "800" },
+  headerPillUnit: { fontSize: 11, fontWeight: "600" },
+  pillOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
+  pillCard: { borderRadius: borderRadius.md, borderWidth: 1, padding: spacing.lg, width: "100%", maxWidth: 340 },
+  pillCardTitle: { fontSize: 17, fontWeight: "800", marginBottom: 4 },
+  pillCardSub: { fontSize: 12, marginBottom: spacing.md },
+  pillInput: { borderWidth: 1, borderRadius: borderRadius.sm, padding: spacing.md, fontSize: 24, fontWeight: "800", textAlign: "center" },
+  pillResetLink: { marginTop: spacing.sm, alignItems: "center" },
+  pillResetText: { fontSize: 12, fontWeight: "700" },
+  pillBtnRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  pillBtn: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingVertical: spacing.sm + 4, alignItems: "center" },
+  pillBtnText: { fontSize: 15, fontWeight: "700" },
   weekRow: { flexDirection: "row", borderBottomWidth: 1, paddingHorizontal: spacing.sm },
   weekTab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, position: "relative" },
   weekText: { fontSize: 12, fontWeight: "500" },
