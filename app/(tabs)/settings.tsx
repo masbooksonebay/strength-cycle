@@ -151,6 +151,18 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
+      <Section title="General" theme={theme}>
+        <Row label="Units" theme={theme} last right={
+          <View style={styles.unitToggle}>
+            {(["lb", "kg"] as const).map((u) => (
+              <TouchableOpacity key={u} onPress={() => onUnitsChange(u)} style={[styles.unitBtn, s.units === u && { backgroundColor: theme.accent, borderColor: theme.accent }, { borderColor: theme.border }]}>
+                <Text style={[styles.unitBtnText, { color: s.units === u ? "#fff" : theme.text }]}>{u.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        } />
+      </Section>
+
       <Section title="1 Rep Max" theme={theme}>
         {data.lifts.map((lift, i) => (
           <Row key={lift.name} label={lift.name} last={i === data.lifts.length - 1} theme={theme}
@@ -168,15 +180,6 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Plate Calculator" theme={theme}>
-        <Row label="Units" theme={theme} right={
-          <View style={styles.unitToggle}>
-            {(["lb", "kg"] as const).map((u) => (
-              <TouchableOpacity key={u} onPress={() => onUnitsChange(u)} style={[styles.unitBtn, s.units === u && { backgroundColor: theme.accent, borderColor: theme.accent }, { borderColor: theme.border }]}>
-                <Text style={[styles.unitBtnText, { color: s.units === u ? "#fff" : theme.text }]}>{u.toUpperCase()}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        } />
         <Row label="Bar Weight" theme={theme} right={
           <TouchableOpacity onPress={() => setShowBarWeight(true)} style={styles.tapRow}>
             <Text style={[styles.valueText, { color: theme.accent }]}>{currentBarPresetLabel} · {formatWeight(s.barWeight)} {unitLabel}</Text>
