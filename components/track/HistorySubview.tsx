@@ -11,9 +11,11 @@ export function HistorySubview() {
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const [liftFilter, setLiftFilter] = useState<string>("All");
   const [cycleFilter, setCycleFilter] = useState<number | "All">("All");
+  const [phaseFilter, setPhaseFilter] = useState<string>("All");
   const [detail, setDetail] = useState<WorkoutLog | null>(null);
   const [showLiftPick, setShowLiftPick] = useState(false);
   const [showCyclePick, setShowCyclePick] = useState(false);
+  const [showPhasePick, setShowPhasePick] = useState(false);
   const [tagEdit, setTagEdit] = useState<WorkoutLog | null>(null);
   const [tagCycleInput, setTagCycleInput] = useState("");
   const [tagPhase, setTagPhase] = useState<string>("5/5/5");
@@ -50,8 +52,9 @@ export function HistorySubview() {
     let list = data.workouts;
     if (liftFilter !== "All") list = list.filter((w) => w.exercise === liftFilter);
     if (cycleFilter !== "All") list = list.filter((w) => w.cycle === cycleFilter);
+    if (phaseFilter !== "All") list = list.filter((w) => w.week === phaseFilter);
     return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data.workouts, liftFilter, cycleFilter]);
+  }, [data.workouts, liftFilter, cycleFilter, phaseFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, WorkoutLog[]>();
@@ -75,6 +78,11 @@ export function HistorySubview() {
         <TouchableOpacity style={[styles.filterBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setShowCyclePick(true)}>
           <Ionicons name="repeat-outline" size={14} color={theme.textSecondary} />
           <Text style={[styles.filterText, { color: theme.text }]}>{cycleFilter === "All" ? "All cycles" : `Cycle ${cycleFilter}`}</Text>
+          <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.filterBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setShowPhasePick(true)}>
+          <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+          <Text style={[styles.filterText, { color: theme.text }]}>{phaseFilter === "All" ? "All phases" : phaseFilter}</Text>
           <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -146,6 +154,24 @@ export function HistorySubview() {
                 {cycleFilter === c && <Ionicons name="checkmark" size={18} color={theme.accent} />}
               </TouchableOpacity>
             ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Phase Picker */}
+      <Modal visible={showPhasePick} transparent animationType="fade" onRequestClose={() => setShowPhasePick(false)}>
+        <TouchableOpacity style={styles.pickOverlay} activeOpacity={1} onPress={() => setShowPhasePick(false)}>
+          <View style={[styles.pickCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            {(["All", ...WEEKS] as const).map((p) => {
+              const label = p === "All" ? "All phases" : p;
+              const active = phaseFilter === p;
+              return (
+                <TouchableOpacity key={p} style={[styles.pickRow, { borderBottomColor: theme.border }, active && { backgroundColor: theme.accent + "20" }]} onPress={() => { setPhaseFilter(p); setShowPhasePick(false); }}>
+                  <Text style={[styles.pickText, { color: active ? theme.accent : theme.text, fontWeight: active ? "800" : "500" }]}>{label}</Text>
+                  {active && <Ionicons name="checkmark" size={18} color={theme.accent} />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -247,7 +273,7 @@ export function HistorySubview() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  filterBar: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: 1 },
+  filterBar: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: 1 },
   filterBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
   filterText: { fontSize: 13, fontWeight: "600" },
   content: { padding: spacing.md },
