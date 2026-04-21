@@ -5,6 +5,7 @@ import { useApp } from "../../lib/context";
 import { WEEKS, WEEK_SETS, calcTM, calcWeight, calcE1RM } from "../../lib/program";
 import { generateId, WorkoutLog, SetLog } from "../../lib/store";
 import { spacing, borderRadius } from "../../constants/theme";
+import { NumericInputWithDone } from "../common/NumericInputWithDone";
 
 interface EditableSet {
   percentage: number;
@@ -157,7 +158,7 @@ export function CurrentSubview() {
               </Text>
               <Text style={[styles.setTarget, { color: theme.textSecondary }]}>Target {st.weight} {unitLabel}</Text>
             </View>
-            <TextInput
+            <NumericInputWithDone
               style={[styles.repsInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
               value={st.actualReps}
               onChangeText={(t) => updateSet(i, { actualReps: t.replace(/[^0-9]/g, ""), done: parseInt(t, 10) > 0 })}

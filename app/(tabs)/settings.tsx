@@ -15,6 +15,7 @@ import {
 } from "../../lib/plates";
 import { SHOW_IAP_UI } from "../../lib/config";
 import { ProgramGuide } from "../../components/ProgramGuide";
+import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 
 function Section({ title, children, theme }: { title: string; children: React.ReactNode; theme: any }) {
   return (
@@ -123,7 +124,7 @@ export default function SettingsScreen() {
           <Row key={lift.name} label={lift.name} last={i === data.lifts.length - 1} theme={theme}
             right={editingRM === lift.name ? (
               <View style={styles.rmEdit}>
-                <TextInput style={[styles.rmInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={rmValue} onChangeText={setRmValue} keyboardType="numeric" autoFocus onSubmitEditing={saveRM} />
+                <NumericInputWithDone style={[styles.rmInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={rmValue} onChangeText={setRmValue} keyboardType="numeric" autoFocus onSubmitEditing={saveRM} />
                 <TouchableOpacity onPress={saveRM}><Ionicons name="checkmark-circle" size={28} color={theme.accent} /></TouchableOpacity>
               </View>
             ) : (
@@ -243,7 +244,7 @@ export default function SettingsScreen() {
         <View style={styles.overlayCenter}>
           <View style={[styles.miniCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.miniTitle, { color: theme.text }]}>Rest Timer (seconds)</Text>
-            <TextInput style={[styles.miniInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={restValue} onChangeText={setRestValue} keyboardType="numeric" autoFocus />
+            <NumericInputWithDone style={[styles.miniInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={restValue} onChangeText={setRestValue} keyboardType="numeric" autoFocus />
             <View style={styles.miniBtns}>
               <TouchableOpacity onPress={() => setShowRestTimer(false)} style={[styles.miniBtn, { borderColor: theme.border }]}><Text style={[styles.miniBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => { const v = parseInt(restValue, 10); if (v > 0) updateSettings({ restTimerDuration: v }); setShowRestTimer(false); }} style={[styles.miniBtn, { backgroundColor: theme.accent }]}><Text style={[styles.miniBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
@@ -271,7 +272,7 @@ export default function SettingsScreen() {
             ))}
             <Text style={[styles.pickerLabel, { color: theme.textSecondary, marginTop: spacing.md }]}>CUSTOM</Text>
             <View style={[styles.listRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
-              <TextInput
+              <NumericInputWithDone
                 style={[styles.customInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
                 value={customBarVal}
                 onChangeText={setCustomBarVal}

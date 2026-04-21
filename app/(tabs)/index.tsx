@@ -10,6 +10,7 @@ import { calculatePlates, formatPlateBreakdown, formatWeight } from "../../lib/p
 import { spacing, borderRadius } from "../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../components/TimerPill";
 import { useTimer } from "../../lib/timer";
+import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 
 export default function WorkoutScreen() {
   const { data, theme, addWorkout, addExtraSet, removeExtraSet, addLift, updateLift, updateSettings } = useApp();
@@ -254,7 +255,7 @@ export default function WorkoutScreen() {
           <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit 1RM — {lift.name}</Text>
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Your estimated one rep max ({unitLabel})</Text>
-            <TextInput
+            <NumericInputWithDone
               style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
               value={pillRmInput}
               onChangeText={setPillRmInput}
@@ -276,7 +277,7 @@ export default function WorkoutScreen() {
           <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit Training Max — {lift.name}</Text>
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Default: {calcTM(lift.oneRepMax, s.tmPercentage)} {unitLabel} ({s.tmPercentage}% of 1RM)</Text>
-            <TextInput
+            <NumericInputWithDone
               style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
               value={pillTmInput}
               onChangeText={setPillTmInput}

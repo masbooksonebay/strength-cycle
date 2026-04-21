@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, TextInput } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WorkoutLog } from "../../lib/store";
 import { calcE1RM, WEEKS } from "../../lib/program";
 import { spacing, borderRadius } from "../../constants/theme";
+import { NumericInputWithDone } from "../common/NumericInputWithDone";
 
 export function HistorySubview() {
   const { data, theme, deleteWorkout, updateWorkout } = useApp();
@@ -184,7 +185,7 @@ export function HistorySubview() {
             {tagEdit && <Text style={[styles.tagSub, { color: theme.textSecondary }]}>{tagEdit.exercise} · {new Date(tagEdit.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
 
             <Text style={[styles.tagLabel, { color: theme.textSecondary }]}>CYCLE</Text>
-            <TextInput
+            <NumericInputWithDone
               style={[styles.tagInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
               value={tagCycleInput}
               onChangeText={(t) => setTagCycleInput(t.replace(/[^0-9]/g, ""))}
