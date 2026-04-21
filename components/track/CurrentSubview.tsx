@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WEEKS, WEEK_SETS, calcTM, calcWeight, calcE1RM } from "../../lib/program";
 import { generateId, WorkoutLog, SetLog } from "../../lib/store";
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../common/NumericInputWithDone";
+import { DoneKeyboardToolbar } from "../common/DoneKeyboardToolbar";
 
 interface EditableSet {
   percentage: number;
@@ -25,6 +26,7 @@ export function CurrentSubview() {
   const [weekIdx, setWeekIdx] = useState(0);
   const [notes, setNotes] = useState("");
   const [sets, setSets] = useState<EditableSet[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
 
   const lifts = data.lifts;
   const lift = lifts[liftIdx] || lifts[0];
@@ -101,7 +103,12 @@ export function CurrentSubview() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => swipeLift(-1)} style={styles.arrowBtn}>
           <Ionicons name="chevron-back" size={26} color={theme.textSecondary} />
@@ -164,7 +171,7 @@ export function CurrentSubview() {
               onChangeText={(t) => updateSet(i, { actualReps: t.replace(/[^0-9]/g, ""), done: parseInt(t, 10) > 0 })}
               placeholder="reps"
               placeholderTextColor={theme.textSecondary}
-              keyboardType="numeric"
+              keyboardType="number-pad"
             />
             <TouchableOpacity onPress={() => updateSet(i, { done: !st.done })} style={styles.checkBtn}>
               <Ionicons name={st.done ? "checkmark-circle" : "ellipse-outline"} size={28} color={st.done ? theme.accent : theme.textSecondary} />
@@ -174,13 +181,16 @@ export function CurrentSubview() {
       })}
 
       <Text style={[styles.notesLabel, { color: theme.textSecondary }]}>NOTES</Text>
-      <TextInput
+      <DoneKeyboardToolbar
         style={[styles.notesInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
         value={notes}
         onChangeText={setNotes}
         placeholder="Optional notes..."
         placeholderTextColor={theme.textSecondary}
         multiline
+        onFocus={() => {
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+        }}
       />
 
       <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.accent }]} onPress={handleSave}>
@@ -189,6 +199,7 @@ export function CurrentSubview() {
       </TouchableOpacity>
       <View style={{ height: 80 }} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
