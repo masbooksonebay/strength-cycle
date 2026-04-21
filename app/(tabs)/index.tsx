@@ -11,6 +11,8 @@ import { spacing, borderRadius } from "../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../components/TimerPill";
 import { useTimer } from "../../lib/timer";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
+import { TechniqueTipsModal } from "../../components/workout/TechniqueTipsModal";
+import { techniqueForLift } from "../../constants/programContent";
 
 export default function WorkoutScreen() {
   const { data, theme, addWorkout, addExtraSet, removeExtraSet, addLift, updateLift, updateSettings } = useApp();
@@ -29,6 +31,7 @@ export default function WorkoutScreen() {
   const [plateModal, setPlateModal] = useState(false);
   const [plateModalWeight, setPlateModalWeight] = useState<number | null>(null);
   const [plateModalLabel, setPlateModalLabel] = useState<string>("");
+  const [techModal, setTechModal] = useState(false);
 
   const lifts = data.lifts;
   const lift = lifts[liftIdx] || lifts[0];
@@ -138,7 +141,20 @@ export default function WorkoutScreen() {
           <Ionicons name="chevron-back" size={28} color={theme.textSecondary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={[styles.liftName, { color: theme.text }]}>{lift.name}</Text>
+          <View style={styles.liftNameRow}>
+            <Text style={[styles.liftName, { color: theme.text }]}>{lift.name}</Text>
+            {techniqueForLift(lift.name) && (
+              <TouchableOpacity
+                onPress={() => setTechModal(true)}
+                style={styles.infoBtn}
+                hitSlop={10}
+                accessibilityLabel={`View technique tips for ${lift.name}`}
+                accessibilityRole="button"
+              >
+                <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={styles.pillRow}>
             <TouchableOpacity onPress={openRmPill} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
               <Text style={[styles.headerPillLabel, { color: theme.textSecondary }]}>1RM</Text>
@@ -342,6 +358,8 @@ export default function WorkoutScreen() {
         </View>
       </Modal>
 
+      <TechniqueTipsModal visible={techModal} liftName={lift.name} onClose={() => setTechModal(false)} />
+
       {/* Plate Visual Modal */}
       <Modal visible={plateModal} animationType="fade" transparent>
         <View style={styles.plateOverlay}>
@@ -472,7 +490,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   arrowBtn: { padding: spacing.xs },
   headerCenter: { flex: 1, alignItems: "center" },
+  liftNameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   liftName: { fontSize: 20, fontWeight: "800" },
+  infoBtn: { width: 28, height: 28, alignItems: "center", justifyContent: "center", opacity: 0.7 },
   tmLabel: { fontSize: 13, fontWeight: "600", marginTop: 1 },
   pillRow: { flexDirection: "row", gap: spacing.sm, marginTop: 6 },
   headerPill: { flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderRadius: 16, paddingHorizontal: 10, paddingVertical: 4 },
