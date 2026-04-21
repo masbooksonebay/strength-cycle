@@ -7,7 +7,7 @@ import { spacing, borderRadius } from "../constants/theme";
 
 export function TimerPill() {
   const { theme } = useApp();
-  const { seconds, running, visible, toggle, hide, adjust, reset, duration } = useTimer();
+  const { seconds, running, visible, toggle, hide, adjust, reset, restart, duration } = useTimer();
   const [expanded, setExpanded] = useState(false);
 
   if (!visible) return null;
@@ -21,6 +21,9 @@ export function TimerPill() {
           </TouchableOpacity>
           <Text style={[styles.pillTime, { color: theme.text }]}>{formatTimer(seconds)}</Text>
           <Text style={[styles.pillLabel, { color: theme.textSecondary }]}>REST</Text>
+          <TouchableOpacity onPress={restart} style={styles.pillBtn}>
+            <Ionicons name="refresh" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={hide} style={styles.pillBtn}>
             <Ionicons name="close" size={18} color={theme.textSecondary} />
           </TouchableOpacity>

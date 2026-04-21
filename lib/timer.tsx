@@ -10,6 +10,7 @@ interface TimerCtx {
   pause: () => void;
   toggle: () => void;
   reset: () => void;
+  restart: () => void;
   adjust: (delta: number) => void;
   setDuration: (d: number) => void;
   show: () => void;
@@ -25,6 +26,7 @@ const Ctx = createContext<TimerCtx>({
   pause: () => {},
   toggle: () => {},
   reset: () => {},
+  restart: () => {},
   adjust: () => {},
   setDuration: () => {},
   show: () => {},
@@ -85,6 +87,12 @@ export function TimerProvider({ children, defaultDuration }: { children: React.R
     setSeconds(duration);
   }, [duration]);
 
+  const restart = useCallback(() => {
+    setSeconds(duration);
+    setRunning(true);
+    setVisible(true);
+  }, [duration]);
+
   const adjust = useCallback((delta: number) => {
     setSeconds((s) => Math.max(0, s + delta));
   }, []);
@@ -102,7 +110,7 @@ export function TimerProvider({ children, defaultDuration }: { children: React.R
   }, [duration]);
 
   return (
-    <Ctx.Provider value={{ seconds, duration, running, visible, start, pause, toggle, reset, adjust, setDuration, show, hide }}>
+    <Ctx.Provider value={{ seconds, duration, running, visible, start, pause, toggle, reset, restart, adjust, setDuration, show, hide }}>
       {children}
     </Ctx.Provider>
   );
