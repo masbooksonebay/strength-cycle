@@ -25,6 +25,20 @@ export default function GearScreen() {
               <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
             </TouchableOpacity>
           ))}
+          {cat.title === "Lifting Accessories" && (
+            <View style={[styles.card, styles.mutedCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={[styles.iconCircle, { backgroundColor: theme.border }]}>
+                <Ionicons name="storefront-outline" size={20} color={theme.textSecondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.brand, { color: theme.textSecondary }]}>strengthcycle.shop</Text>
+                <Text style={[styles.description, { color: theme.textSecondary }]}>Coming soon</Text>
+                <View style={[styles.comingPill, { borderColor: theme.border }]}>
+                  <Text style={[styles.comingPillText, { color: theme.textSecondary }]}>Coming Soon</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       ))}
       <View style={{ height: 40 }} />
@@ -39,8 +53,11 @@ const styles = StyleSheet.create({
   section: { marginBottom: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: spacing.sm },
   card: { flexDirection: "row", alignItems: "center", borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, gap: spacing.sm + 2 },
+  mutedCard: { opacity: 0.75 },
   iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   brand: { fontSize: 15, fontWeight: "700" },
   productName: { fontSize: 12, marginTop: 1 },
   description: { fontSize: 12, lineHeight: 17, marginTop: 3 },
+  comingPill: { alignSelf: "flex-start", borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 },
+  comingPillText: { fontSize: 10, fontWeight: "700", letterSpacing: 0.6 },
 });
