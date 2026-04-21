@@ -129,10 +129,9 @@ export default function WorkoutScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.brandHeader}>
-        <Text style={[styles.brandText, { color: theme.text }]}>STRENGTH</Text>
-        <Text style={[styles.brandAccent, { color: theme.accent }]}>CYCLE</Text>
-        <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
+        <Text style={[styles.brandText, { color: theme.text }]}>STRENGTH CYCLE</Text>
       </View>
+      <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
 
       <View style={styles.header}>
         <TouchableOpacity onPress={() => swipeLift(-1)} style={styles.arrowBtn}>
@@ -467,10 +466,9 @@ const barStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  brandHeader: { alignItems: "center", paddingTop: 52, paddingBottom: 4 },
-  brandText: { fontSize: 26, fontWeight: "900", letterSpacing: 4 },
-  brandAccent: { fontSize: 14, fontWeight: "800", letterSpacing: 6, marginTop: -2 },
-  brandLine: { width: 100, height: 3, borderRadius: 2, marginTop: 6 },
+  brandHeader: { alignItems: "center", paddingTop: 52, paddingBottom: spacing.xs + 2 },
+  brandText: { fontSize: 22, fontWeight: "900", letterSpacing: 4 },
+  brandLine: { width: "100%", height: 2 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   arrowBtn: { padding: spacing.xs },
   headerCenter: { flex: 1, alignItems: "center" },

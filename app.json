@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.strengthcycle.app",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "Strength"
       }
     },
     "android": {
