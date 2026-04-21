@@ -1,19 +1,38 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, TextInput } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WorkoutLog } from "../../lib/store";
-import { calcE1RM } from "../../lib/program";
+import { calcE1RM, WEEKS } from "../../lib/program";
 import { spacing, borderRadius } from "../../constants/theme";
 
 export function HistorySubview() {
-  const { data, theme, deleteWorkout } = useApp();
+  const { data, theme, deleteWorkout, updateWorkout } = useApp();
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const [liftFilter, setLiftFilter] = useState<string>("All");
   const [cycleFilter, setCycleFilter] = useState<number | "All">("All");
   const [detail, setDetail] = useState<WorkoutLog | null>(null);
   const [showLiftPick, setShowLiftPick] = useState(false);
   const [showCyclePick, setShowCyclePick] = useState(false);
+  const [tagEdit, setTagEdit] = useState<WorkoutLog | null>(null);
+  const [tagCycleInput, setTagCycleInput] = useState("");
+  const [tagPhase, setTagPhase] = useState<string>("5/5/5");
+
+  const openTagEdit = (w: WorkoutLog) => {
+    setTagEdit(w);
+    setTagCycleInput(String(w.cycle));
+    setTagPhase(w.week);
+  };
+
+  const saveTagEdit = () => {
+    if (!tagEdit) return;
+    const c = parseInt(tagCycleInput, 10);
+    const updates: Partial<WorkoutLog> = {};
+    if (c > 0 && c !== tagEdit.cycle) updates.cycle = c;
+    if (tagPhase !== tagEdit.week) updates.week = tagPhase;
+    if (Object.keys(updates).length > 0) updateWorkout(tagEdit.id, updates);
+    setTagEdit(null);
+  };
 
   const cycles = useMemo(() => {
     const set = new Set<number>();
@@ -76,7 +95,9 @@ export function HistorySubview() {
                   <TouchableOpacity key={w.id} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => setDetail(w)}>
                     <View style={styles.cardTop}>
                       <Text style={[styles.cardLift, { color: theme.text }]}>{w.exercise}</Text>
-                      <Text style={[styles.cardMeta, { color: theme.accent }]}>Cycle {w.cycle} · {w.week}</Text>
+                      <TouchableOpacity onPress={() => openTagEdit(w)} style={[styles.tagPill, { borderColor: theme.border, backgroundColor: theme.background }]}>
+                        <Text style={[styles.tagPillText, { color: theme.accent }]}>Cycle {w.cycle} · {w.week}</Text>
+                      </TouchableOpacity>
                     </View>
                     {topSet && (
                       <Text style={[styles.cardLine, { color: theme.textSecondary }]}>
@@ -127,6 +148,40 @@ export function HistorySubview() {
             ))}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Tag Edit Modal */}
+      <Modal visible={tagEdit !== null} transparent animationType="fade" onRequestClose={() => setTagEdit(null)}>
+        <View style={styles.tagOverlay}>
+          <View style={[styles.tagCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.tagTitle, { color: theme.text }]}>Edit cycle & phase</Text>
+            {tagEdit && <Text style={[styles.tagSub, { color: theme.textSecondary }]}>{tagEdit.exercise} · {new Date(tagEdit.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
+
+            <Text style={[styles.tagLabel, { color: theme.textSecondary }]}>CYCLE</Text>
+            <TextInput
+              style={[styles.tagInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
+              value={tagCycleInput}
+              onChangeText={(t) => setTagCycleInput(t.replace(/[^0-9]/g, ""))}
+              keyboardType="numeric"
+              placeholder="1"
+              placeholderTextColor={theme.textSecondary}
+            />
+
+            <Text style={[styles.tagLabel, { color: theme.textSecondary }]}>PHASE</Text>
+            <View style={styles.tagPhaseRow}>
+              {WEEKS.map((w) => (
+                <TouchableOpacity key={w} onPress={() => setTagPhase(w)} style={[styles.tagPhaseBtn, { borderColor: theme.border }, tagPhase === w && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
+                  <Text style={[styles.tagPhaseText, { color: tagPhase === w ? "#fff" : theme.text }]}>{w === "Deload" ? "DELOAD" : w}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.tagBtnRow}>
+              <TouchableOpacity onPress={() => setTagEdit(null)} style={[styles.tagBtn, { borderColor: theme.border }]}><Text style={[styles.tagBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity onPress={saveTagEdit} style={[styles.tagBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.tagBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* Detail Modal */}
@@ -203,6 +258,20 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardLift: { fontSize: 16, fontWeight: "700" },
   cardMeta: { fontSize: 12, fontWeight: "700" },
+  tagPill: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  tagPillText: { fontSize: 13, fontWeight: "700" },
+  tagOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
+  tagCard: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.lg, width: "100%", maxWidth: 340 },
+  tagTitle: { fontSize: 17, fontWeight: "800" },
+  tagSub: { fontSize: 12, marginTop: 2, marginBottom: spacing.sm },
+  tagLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.md, marginBottom: spacing.xs },
+  tagInput: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, fontSize: 18, fontWeight: "800", textAlign: "center" },
+  tagPhaseRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  tagPhaseBtn: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  tagPhaseText: { fontSize: 13, fontWeight: "700" },
+  tagBtnRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
+  tagBtn: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingVertical: spacing.sm + 4, alignItems: "center" },
+  tagBtnText: { fontSize: 15, fontWeight: "700" },
   cardLine: { fontSize: 13, marginTop: 4 },
   pickOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.xl },
   pickCard: { borderWidth: 1, borderRadius: borderRadius.md, overflow: "hidden" },

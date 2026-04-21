@@ -33,6 +33,7 @@ interface AppCtx {
   updateLift: (name: string, updates: Partial<LiftData>) => void;
   addLift: (lift: LiftData) => void;
   addWorkout: (workout: WorkoutLog) => void;
+  updateWorkout: (id: string, updates: Partial<WorkoutLog>) => void;
   deleteWorkout: (id: string) => void;
   setCurrentCycle: (n: number) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
@@ -48,6 +49,7 @@ const Ctx = createContext<AppCtx>({
   updateLift: () => {},
   addLift: () => {},
   addWorkout: () => {},
+  updateWorkout: () => {},
   deleteWorkout: () => {},
   setCurrentCycle: () => {},
   addExtraSet: () => {},
@@ -89,6 +91,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addWorkout = useCallback((workout: WorkoutLog) => {
     persist({ ...data, workouts: [...data.workouts, workout] });
+  }, [data, persist]);
+
+  const updateWorkout = useCallback((id: string, updates: Partial<WorkoutLog>) => {
+    persist({ ...data, workouts: data.workouts.map((w) => (w.id === id ? { ...w, ...updates } : w)) });
   }, [data, persist]);
 
   const deleteWorkout = useCallback((id: string) => {
@@ -153,7 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
+    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, updateWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
       <TimerProvider defaultDuration={data.settings.restTimerDuration}>
         {children}
       </TimerProvider>
