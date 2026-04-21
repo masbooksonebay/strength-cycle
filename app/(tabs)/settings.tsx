@@ -14,6 +14,7 @@ import {
   formatWeight,
 } from "../../lib/plates";
 import { SHOW_IAP_UI } from "../../lib/config";
+import { ProgramGuide } from "../../components/ProgramGuide";
 
 function Section({ title, children, theme }: { title: string; children: React.ReactNode; theme: any }) {
   return (
@@ -41,52 +42,6 @@ function Row({ label, right, theme, last, info }: { label: string; right: React.
 }
 
 const TM_OPTIONS = [80, 85, 90, 95, 100];
-
-const GUIDE_TEXT = `5/3/1 is a strength training program created by Jim Wendler. It is built around four main barbell lifts and uses percentage-based loading to drive slow, consistent progress over time. The core philosophy: start lighter than you think you need to, progress slowly, and focus on long-term strength gains.
-
-THE 4 MAIN LIFTS
-• Squat
-• Bench Press
-• Deadlift
-• Overhead Press
-
-TRAINING MAX (TM)
-Your Training Max is NOT your true 1 Rep Max. It is the weight all percentages are calculated from. Default is 90% of your 1RM. Starting conservative allows you to build momentum and avoid stalling early.
-
-THE 4-WEEK CYCLE
-
-Week 1 — 5/5/5+
-Warm-up: 50%x5, 60%x5, 65%x5
-Working sets: 75%x5, 85%x5+
-
-Week 2 — 3/3/3+
-Warm-up: 50%x5, 60%x5, 70%x5
-Working sets: 80%x3, 90%x3+
-
-Week 3 — 5/3/1+
-Warm-up: 50%x5, 60%x5, 75%x5
-Working sets: 85%x5, 90%x3, 95%x1+
-
-Week 4 — Deload
-Light sets: 40%x5, 50%x5, 60%x5
-
-(x+ = AMRAP — do as many reps as possible on the final set)
-
-TM PROGRESSION
-After completing a full 4-week cycle, increase your Training Max:
-• Upper body lifts (Bench, Overhead Press): +5 lbs
-• Lower body lifts (Squat, Deadlift): +10 lbs
-
-GLOSSARY
-1RM (One Rep Max) — The maximum weight you can lift for one rep.
-TM (Training Max) — The weight your percentages are based on. Default: 90% of your 1RM.
-AMRAP — As Many Reps As Possible. On the final working set each week, do as many reps as you can with good form.
-e1RM (Estimated 1RM) — A calculated estimate of your 1RM based on weight and reps, using the Epley formula: weight × (1 + reps/30).
-Deload — A lighter week at the end of each 4-week cycle for recovery.
-Working Sets — The main sets where the primary training stimulus occurs.
-Warm-up Sets — Lighter sets before working sets to prepare the body.
-Cycle — One complete 4-week block (Weeks 1–4).
-TM Progression — The scheduled increase in Training Max after each completed cycle.`;
 
 const ROUNDING_LABELS: Record<RoundingMode, string> = {
   down: "Always down",
@@ -362,7 +317,7 @@ export default function SettingsScreen() {
             <TouchableOpacity onPress={() => setShowGuide(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.guideContent}>
-            <Text style={[styles.guideText, { color: theme.textSecondary }]}>{GUIDE_TEXT}</Text>
+            <ProgramGuide theme={theme} />
           </ScrollView>
         </View>
       </Modal>
