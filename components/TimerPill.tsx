@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTimer, formatTimer } from "../lib/timer";
 import { useApp } from "../lib/context";
@@ -7,7 +7,7 @@ import { spacing, borderRadius } from "../constants/theme";
 
 export function TimerPill() {
   const { theme } = useApp();
-  const { seconds, running, visible, toggle, hide, adjust, reset, restart, duration } = useTimer();
+  const { seconds, running, visible, toggle, hide, adjust, restart, duration } = useTimer();
   const [expanded, setExpanded] = useState(false);
 
   if (!visible) return null;
@@ -46,27 +46,37 @@ export function TimerPill() {
             </View>
 
             <View style={styles.adjustRow}>
-              {[-30, -15, -10, 10, 15, 30].map((d) => (
-                <TouchableOpacity key={d} style={[styles.adjustBtn, { borderColor: theme.border }]} onPress={() => adjust(d)}>
-                  <Text style={[styles.adjustText, { color: theme.text }]}>{d > 0 ? "+" : ""}{d}s</Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity style={[styles.adjustBtn, { borderColor: theme.border }]} onPress={() => adjust(-15)} accessibilityLabel="Subtract 15 seconds">
+                <Text style={[styles.adjustText, { color: theme.text }]}>−15s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.adjustBtn, { borderColor: theme.border }]} onPress={() => adjust(15)} accessibilityLabel="Add 15 seconds">
+                <Text style={[styles.adjustText, { color: theme.text }]}>+15s</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.controlRow}>
-              <TouchableOpacity style={[styles.controlBtn, { backgroundColor: running ? theme.accent : theme.card, borderColor: theme.border }]} onPress={toggle}>
-                <Ionicons name={running ? "pause" : "play"} size={26} color={running ? "#fff" : theme.text} />
-                <Text style={[styles.controlText, { color: running ? "#fff" : theme.text }]}>{running ? "PAUSE" : "START"}</Text>
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}
+                onPress={toggle}
+                accessibilityLabel={running ? "Pause timer" : "Start timer"}
+              >
+                <Ionicons name={running ? "pause" : "play"} size={28} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.controlBtn, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={reset}>
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+                onPress={restart}
+                accessibilityLabel="Restart timer"
+              >
                 <Ionicons name="refresh" size={26} color={theme.text} />
-                <Text style={[styles.controlText, { color: theme.text }]}>RESET</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.controlBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+                onPress={() => { hide(); setExpanded(false); }}
+                accessibilityLabel="Stop and dismiss timer"
+              >
+                <Ionicons name="close" size={26} color={theme.text} />
               </TouchableOpacity>
             </View>
-
-            <TouchableOpacity onPress={() => { hide(); setExpanded(false); }} style={[styles.dismissBtn, { borderColor: theme.border }]}>
-              <Text style={[styles.dismissText, { color: theme.textSecondary }]}>Dismiss Timer</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -79,7 +89,11 @@ export function TimerStartButton() {
   const { visible, start } = useTimer();
   if (visible) return null;
   return (
-    <TouchableOpacity onPress={() => start()} style={[styles.startBtn, { borderColor: theme.border, backgroundColor: theme.card }]}>
+    <TouchableOpacity
+      onPress={() => start()}
+      style={[styles.startBtn, { borderColor: theme.accent, backgroundColor: "transparent" }]}
+      accessibilityLabel="Start rest timer"
+    >
       <Ionicons name="timer-outline" size={18} color={theme.accent} />
       <Text style={[styles.startBtnText, { color: theme.accent }]}>Start Rest Timer</Text>
     </TouchableOpacity>
@@ -99,14 +113,11 @@ const styles = StyleSheet.create({
   circle: { width: 200, height: 200, borderRadius: 100, borderWidth: 4, alignItems: "center", justifyContent: "center", marginBottom: spacing.lg },
   bigTime: { fontSize: 48, fontWeight: "800", fontVariant: ["tabular-nums"] },
   label: { fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginTop: 4 },
-  adjustRow: { flexDirection: "row", gap: 6, marginBottom: spacing.lg, flexWrap: "wrap", justifyContent: "center" },
-  adjustBtn: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm },
-  adjustText: { fontSize: 13, fontWeight: "600" },
-  controlRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
-  controlBtn: { flexDirection: "row", alignItems: "center", gap: spacing.sm, borderWidth: 1, borderRadius: borderRadius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  controlText: { fontSize: 15, fontWeight: "700" },
-  dismissBtn: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2 },
-  dismissText: { fontSize: 13, fontWeight: "600" },
-  startBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: 8 },
-  startBtnText: { fontSize: 13, fontWeight: "700" },
+  adjustRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg, justifyContent: "center" },
+  adjustBtn: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, minWidth: 80, alignItems: "center" },
+  adjustText: { fontSize: 15, fontWeight: "700" },
+  controlRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.xs },
+  controlBtn: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  startBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderRadius: borderRadius.sm, paddingVertical: 11, width: "100%" },
+  startBtnText: { fontSize: 14, fontWeight: "800", letterSpacing: 0.3 },
 });

@@ -117,6 +117,7 @@ export default function WorkoutScreen() {
     addWorkout(workout);
     setLogModal(false);
     setLogNotes("");
+    timer.start(s.restTimerDuration);
     Alert.alert("Logged", `${lift.name} — ${week} — ${amrapReps} reps @ ${lastAmrapWeight} ${unitLabel}`);
   };
 
@@ -225,13 +226,15 @@ export default function WorkoutScreen() {
 
         {lastAmrapSet?.isAmrap && (
           <View style={[styles.e1rmCard, { backgroundColor: theme.card, borderColor: theme.accent }]}>
-            <Text style={[styles.e1rmLabel, { color: theme.accent }]}>AMRAP REPS</Text>
-            <View style={styles.repCounter}>
-              <TouchableOpacity onPress={() => setAmrapReps(Math.max(1, amrapReps - 1))} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={24} color={theme.text} /></TouchableOpacity>
-              <Text style={[styles.repCount, { color: theme.text }]}>{amrapReps}</Text>
-              <TouchableOpacity onPress={() => setAmrapReps(amrapReps + 1)} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="add" size={24} color={theme.text} /></TouchableOpacity>
+            <View style={styles.e1rmTopRow}>
+              <Text style={[styles.e1rmLabel, { color: theme.accent }]}>AMRAP REPS</Text>
+              <View style={styles.repCounter}>
+                <TouchableOpacity onPress={() => setAmrapReps(Math.max(1, amrapReps - 1))} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={18} color={theme.text} /></TouchableOpacity>
+                <Text style={[styles.repCount, { color: theme.text }]}>{amrapReps}</Text>
+                <TouchableOpacity onPress={() => setAmrapReps(amrapReps + 1)} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="add" size={18} color={theme.text} /></TouchableOpacity>
+              </View>
             </View>
-            {e1rm && <Text style={[styles.e1rmValue, { color: theme.text }]}>Estimated 1RM (e1RM): <Text style={{ color: theme.accent, fontWeight: "800" }}>{e1rm} {unitLabel}</Text></Text>}
+            {e1rm && <Text style={[styles.e1rmValue, { color: theme.textSecondary }]}>e1RM <Text style={{ color: theme.accent, fontWeight: "800" }}>{e1rm} {unitLabel}</Text></Text>}
           </View>
         )}
 
@@ -240,7 +243,7 @@ export default function WorkoutScreen() {
           <Text style={styles.logBtnText}>Add to Log</Text>
         </TouchableOpacity>
 
-        <View style={{ alignItems: "center", marginTop: spacing.sm }}>
+        <View style={{ marginTop: spacing.sm }}>
           <TimerStartButton />
         </View>
 
@@ -505,12 +508,13 @@ const styles = StyleSheet.create({
   removeBtn: { position: "absolute", top: 6, right: 6 },
   addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, paddingVertical: 10, marginBottom: spacing.sm },
   addSetText: { fontSize: 13, fontWeight: "600" },
-  e1rmCard: { borderRadius: borderRadius.md, padding: spacing.lg, marginTop: spacing.md, borderWidth: 1, alignItems: "center" },
-  e1rmLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: spacing.sm },
-  repCounter: { flexDirection: "row", alignItems: "center", gap: spacing.lg },
-  repBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  repCount: { fontSize: 34, fontWeight: "800", minWidth: 56, textAlign: "center" },
-  e1rmValue: { fontSize: 15, fontWeight: "600", marginTop: spacing.md },
+  e1rmCard: { borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, marginTop: spacing.md, borderWidth: 1 },
+  e1rmTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  e1rmLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 1 },
+  repCounter: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  repBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  repCount: { fontSize: 20, fontWeight: "800", minWidth: 36, textAlign: "center" },
+  e1rmValue: { fontSize: 13, fontWeight: "600", marginTop: 2, textAlign: "right" },
   logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.lg },
   logBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   modalContainer: { flex: 1 },
