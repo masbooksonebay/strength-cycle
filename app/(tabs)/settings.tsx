@@ -13,6 +13,7 @@ import {
   WeightUnit,
   formatWeight,
 } from "../../lib/plates";
+import { SHOW_IAP_UI } from "../../lib/config";
 
 function Section({ title, children, theme }: { title: string; children: React.ReactNode; theme: any }) {
   return (
@@ -256,13 +257,15 @@ export default function SettingsScreen() {
         <Row label="More programs" theme={theme} last right={<View style={styles.lockedRow}><Ionicons name="lock-closed" size={14} color={theme.textSecondary} /><Text style={[styles.lockedText, { color: theme.textSecondary }]}>Coming soon</Text></View>} />
       </Section>
 
-      <Section title="Purchase" theme={theme}>
-        <Row label="PRO Bundle (all features)" theme={theme} right={<Text style={[styles.priceText, { color: theme.accent }]}>$4.99</Text>} />
-        <Row label="Additional Lifts" theme={theme} info="Add unlimited custom lifts beyond the 4 main lifts. Custom lifts appear alongside your main lifts and are tracked in log and progress." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
-        <Row label="Adjustable Set" theme={theme} info="Add a final custom set to any lift with your own percentage and rep count. Perfect for joker sets, Boring But Big, or back-off work." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
-        <Row label="Progress Log" theme={theme} info="Unlock the Progress tab with Estimated 1RM and Training Max charts over time for every lift. Includes time filters and calendar view." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
-        <Row label="Restore Purchases" theme={theme} last right={<Ionicons name="refresh" size={18} color={theme.textSecondary} />} />
-      </Section>
+      {SHOW_IAP_UI && (
+        <Section title="Purchase" theme={theme}>
+          <Row label="PRO Bundle (all features)" theme={theme} right={<Text style={[styles.priceText, { color: theme.accent }]}>$4.99</Text>} />
+          <Row label="Additional Lifts" theme={theme} info="Add unlimited custom lifts beyond the 4 main lifts. Custom lifts appear alongside your main lifts and are tracked in log and progress." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
+          <Row label="Adjustable Set" theme={theme} info="Add a final custom set to any lift with your own percentage and rep count. Perfect for joker sets, Boring But Big, or back-off work." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
+          <Row label="Progress Log" theme={theme} info="Unlock the Progress tab with Estimated 1RM and Training Max charts over time for every lift. Includes time filters and calendar view." right={<Text style={[styles.priceText, { color: theme.textSecondary }]}>$1.99</Text>} />
+          <Row label="Restore Purchases" theme={theme} last right={<Ionicons name="refresh" size={18} color={theme.textSecondary} />} />
+        </Section>
+      )}
 
       <Section title="Feedback" theme={theme}>
         <Row label="Send Feedback" theme={theme} right={<Ionicons name="mail-outline" size={18} color={theme.textSecondary} />} />

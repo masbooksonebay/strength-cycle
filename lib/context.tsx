@@ -10,6 +10,21 @@ import {
   precisionOptionsFor,
 } from "./plates";
 import { TimerProvider } from "./timer";
+import { SHOW_IAP_UI } from "./config";
+
+// When IAP UI is hidden, all gated flags behave as unlocked.
+function applyIapOverrides(data: AppData): AppData {
+  if (SHOW_IAP_UI) return data;
+  return {
+    ...data,
+    settings: {
+      ...data.settings,
+      additionalLifts: true,
+      adjustableSet: true,
+      progressLog: true,
+    },
+  };
+}
 
 interface AppCtx {
   data: AppData;
@@ -55,7 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadData().then((d) => { setData(d); setLoaded(true); });
+    loadData().then((d) => { setData(applyIapOverrides(d)); setLoaded(true); });
   }, []);
 
   const updateSettings = useCallback((s: Partial<Settings>) => {
@@ -131,7 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [data, persist]);
 
-  const reload = useCallback(async () => { const d = await loadData(); setData(d); }, []);
+  const reload = useCallback(async () => { const d = await loadData(); setData(applyIapOverrides(d)); }, []);
 
   const theme = data.settings.darkMode ? darkTheme : lightTheme;
   if (!loaded) return null;
