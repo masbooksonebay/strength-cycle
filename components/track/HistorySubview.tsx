@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WorkoutLog } from "../../lib/store";
@@ -179,7 +179,7 @@ export function HistorySubview() {
 
       {/* Tag Edit Modal */}
       <Modal visible={tagEdit !== null} transparent animationType="fade" onRequestClose={() => setTagEdit(null)}>
-        <View style={styles.tagOverlay}>
+        <KeyboardAvoidingView style={styles.tagOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.tagCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.tagTitle, { color: theme.text }]}>Edit cycle & phase</Text>
             {tagEdit && <Text style={[styles.tagSub, { color: theme.textSecondary }]}>{tagEdit.exercise} · {new Date(tagEdit.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
@@ -208,7 +208,7 @@ export function HistorySubview() {
               <TouchableOpacity onPress={saveTagEdit} style={[styles.tagBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.tagBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Detail Modal */}

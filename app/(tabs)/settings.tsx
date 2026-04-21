@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, TextInput, Alert, Modal } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
@@ -241,7 +241,7 @@ export default function SettingsScreen() {
 
       {/* Rest Timer Modal */}
       <Modal visible={showRestTimer} transparent animationType="fade">
-        <View style={styles.overlayCenter}>
+        <KeyboardAvoidingView style={styles.overlayCenter} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.miniCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.miniTitle, { color: theme.text }]}>Rest Timer (seconds)</Text>
             <NumericInputWithDone style={[styles.miniInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={restValue} onChangeText={setRestValue} keyboardType="numeric" autoFocus />
@@ -250,17 +250,20 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={() => { const v = parseInt(restValue, 10); if (v > 0) updateSettings({ restTimerDuration: v }); setShowRestTimer(false); }} style={[styles.miniBtn, { backgroundColor: theme.accent }]}><Text style={[styles.miniBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Bar Weight Modal */}
       <Modal visible={showBarWeight} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.guideContainer, { backgroundColor: theme.background }]}>
+        <KeyboardAvoidingView
+          style={[styles.guideContainer, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.guideHeader}>
             <Text style={[styles.guideTitle, { color: theme.text }]}>Bar Weight</Text>
             <TouchableOpacity onPress={() => setShowBarWeight(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.guideContent}>
+          <ScrollView contentContainerStyle={styles.guideContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             {barPresets.map((p) => (
               <TouchableOpacity key={p.label} style={[styles.listRow, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setBar(p.weight)}>
                 <Text style={[styles.listRowLabel, { color: theme.text }]}>{p.label}</Text>
@@ -285,7 +288,7 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Plates Modal */}

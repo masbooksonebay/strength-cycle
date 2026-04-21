@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, TextInput, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Alert, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
@@ -11,6 +11,7 @@ import { spacing, borderRadius } from "../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../components/TimerPill";
 import { useTimer } from "../../lib/timer";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
+import { DoneKeyboardToolbar } from "../../components/common/DoneKeyboardToolbar";
 import { TechniqueTipsModal } from "../../components/workout/TechniqueTipsModal";
 import { techniqueForLift } from "../../constants/programContent";
 
@@ -269,7 +270,7 @@ export default function WorkoutScreen() {
 
       {/* 1RM Pill Modal */}
       <Modal visible={rmPillModal} transparent animationType="fade" onRequestClose={() => setRmPillModal(false)}>
-        <View style={styles.pillOverlay}>
+        <KeyboardAvoidingView style={styles.pillOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit 1RM — {lift.name}</Text>
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Your estimated one rep max ({unitLabel})</Text>
@@ -286,12 +287,12 @@ export default function WorkoutScreen() {
               <TouchableOpacity onPress={saveRmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* TM Pill Modal */}
       <Modal visible={tmPillModal} transparent animationType="fade" onRequestClose={() => setTmPillModal(false)}>
-        <View style={styles.pillOverlay}>
+        <KeyboardAvoidingView style={styles.pillOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit Training Max — {lift.name}</Text>
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Default: {calcTM(lift.oneRepMax, s.tmPercentage)} {unitLabel} ({s.tmPercentage}% of 1RM)</Text>
@@ -313,17 +314,21 @@ export default function WorkoutScreen() {
               <TouchableOpacity onPress={saveTmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Log Modal */}
       <Modal visible={logModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        >
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Log Workout</Text>
             <TouchableOpacity onPress={() => setLogModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalContent}>
+          <ScrollView contentContainerStyle={styles.modalContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Exercise</Text>
             <Text style={[styles.modalValue, { color: theme.text }]}>{lift.name}</Text>
             <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Week</Text>
@@ -337,25 +342,28 @@ export default function WorkoutScreen() {
               <TouchableOpacity onPress={() => setAmrapReps(amrapReps + 1)} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="add" size={24} color={theme.text} /></TouchableOpacity>
             </View>
             <Text style={[styles.modalLabel, { color: theme.textSecondary, marginTop: spacing.lg }]}>Notes</Text>
-            <TextInput style={[styles.notesInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]} placeholder="Optional notes..." placeholderTextColor={theme.textSecondary} multiline value={logNotes} onChangeText={setLogNotes} />
+            <DoneKeyboardToolbar style={[styles.notesInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text }]} placeholder="Optional notes..." placeholderTextColor={theme.textSecondary} multiline value={logNotes} onChangeText={setLogNotes} />
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.accent }]} onPress={handleLog}><Text style={styles.saveBtnText}>Save</Text></TouchableOpacity>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Add Lift Modal */}
       <Modal visible={addLiftModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: theme.background }]}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Add Custom Lift</Text>
             <TouchableOpacity onPress={() => setAddLiftModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
             <Text style={[styles.modalLabel, { color: theme.textSecondary }]}>Lift Name</Text>
-            <TextInput style={[styles.notesInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text, minHeight: 48 }]} placeholder="e.g. Front Squat" placeholderTextColor={theme.textSecondary} value={newLiftName} onChangeText={setNewLiftName} autoFocus />
+            <DoneKeyboardToolbar style={[styles.notesInput, { backgroundColor: theme.inputBg, borderColor: theme.border, color: theme.text, minHeight: 48 }]} placeholder="e.g. Front Squat" placeholderTextColor={theme.textSecondary} value={newLiftName} onChangeText={setNewLiftName} autoFocus returnKeyType="done" onSubmitEditing={saveNewLift} />
             <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.accent }]} onPress={saveNewLift}><Text style={styles.saveBtnText}>Add Lift</Text></TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <TechniqueTipsModal visible={techModal} liftName={lift.name} onClose={() => setTechModal(false)} />
