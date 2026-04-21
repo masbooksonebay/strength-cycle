@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, borderRadius, Theme } from "../constants/theme";
+import { TECHNIQUE, LIFT_DESCRIPTIONS, WEEK_DESCRIPTIONS } from "../constants/programContent";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -14,7 +15,8 @@ type SectionKey =
   | "cycle"
   | "progression"
   | "technique"
-  | "glossary";
+  | "glossary"
+  | "learnMore";
 
 const SECTIONS: { key: SectionKey; title: string }[] = [
   { key: "overview", title: "Overview" },
@@ -24,6 +26,7 @@ const SECTIONS: { key: SectionKey; title: string }[] = [
   { key: "progression", title: "Progression" },
   { key: "technique", title: "Technique Tips" },
   { key: "glossary", title: "Glossary" },
+  { key: "learnMore", title: "Learn More" },
 ];
 
 const GLOSSARY: { term: string; def: string }[] = [
@@ -42,90 +45,50 @@ const GLOSSARY: { term: string; def: string }[] = [
   { term: "Working Sets", def: "The main sets where the primary training stimulus occurs." },
 ];
 
-const TECHNIQUE: { lift: string; setup: string[]; execution: string[]; mistakes: string[] }[] = [
-  {
-    lift: "Squat",
-    setup: [
-      "Bar positioned on upper traps (high bar) or rear delts (low bar) — low bar for powerlifting-style 5/3/1",
-      "Feet shoulder-width to slightly wider, toes angled out 15–30°",
-      "Hands grip bar tight, elbows down, chest up, big breath into belly before unrack",
-    ],
-    execution: [
-      "Break at hips and knees simultaneously, not just knees",
-      "Descend until hip crease is below top of knee (parallel or below)",
-      "Knees track over toes, not caving inward",
-      "Drive up through mid-foot and heel, chest leading",
-    ],
-    mistakes: [
-      "Knees caving in on the way up (weak glutes/cues)",
-      "Rounding lower back at the bottom (\"butt wink\") — reduce depth or mobility work",
-      "Good-morning pattern on heavy sets (hips shoot up first) — re-focus on chest-leading",
-    ],
-  },
-  {
-    lift: "Bench Press",
-    setup: [
-      "Feet planted flat, shoulders retracted and pulled into bench, slight arch in upper back",
-      "Grip roughly 1.5x shoulder width — find what puts forearms vertical at chest",
-      "Unrack with straight arms, settle bar over shoulders before descending",
-    ],
-    execution: [
-      "Lower bar under control to mid-chest (nipple line for most)",
-      "Keep elbows tucked ~45–60° from torso, not flared to 90°",
-      "Pause optional on heavy sets; paused reps build raw strength",
-      "Drive bar up and slightly back toward face, not straight up",
-    ],
-    mistakes: [
-      "Elbows flaring out to 90° — increases shoulder strain, reduces leverage",
-      "Bouncing bar off chest — reduces training stimulus and risks injury",
-      "Losing upper back tightness mid-set — reset between reps if needed",
-    ],
-  },
-  {
-    lift: "Deadlift",
-    setup: [
-      "Bar over mid-foot, close to shins",
-      "Feet hip-width, toes slightly out (conventional) or wider (sumo — choose one style per cycle, don't alternate)",
-      "Grip just outside knees, hips higher than knees, chest up, lats engaged (think \"bend the bar around you\")",
-    ],
-    execution: [
-      "Take slack out of bar before pulling — feel the plates lift off slightly",
-      "Push the floor away with legs first, bar stays in contact with shins and thighs",
-      "Lock out with hips, not by leaning back; stand tall, don't hyperextend",
-      "Control descent or drop (bumpers only)",
-    ],
-    mistakes: [
-      "Lower back rounding under load — reduce weight, fix setup, consider mobility work",
-      "Hips shooting up first (turning the lift into a stiff-leg deadlift) — re-cue \"push floor away with legs\"",
-      "Jerking the bar off the floor — take slack out first, build tension before pull",
-    ],
-  },
-  {
-    lift: "Overhead Press",
-    setup: [
-      "Bar in front rack position, resting on shoulders with elbows slightly in front of bar",
-      "Grip just outside shoulder-width, wrists stacked over elbows",
-      "Feet hip-to-shoulder width, glutes and core braced hard (no leg drive on strict press)",
-    ],
-    execution: [
-      "Press bar straight up, moving head back slightly to clear chin",
-      "Once bar clears forehead, push head through — finish with bar over mid-foot, ears between arms",
-      "Squeeze glutes throughout to prevent lower back hyperextension",
-    ],
-    mistakes: [
-      "Leaning back excessively to press the bar — turns it into a standing incline press, strains lower back",
-      "Bar drifting forward on the press — keep it vertical, push through the bar",
-      "Soft core/glutes — bracing is what keeps the press strict and the lower back safe",
-    ],
-  },
+const LEARN_MORE_LINKS: { label: string; desc: string; url: string }[] = [
+  { label: "JimWendler.com", desc: "Official 5/3/1 site and books", url: "https://www.jimwendler.com/" },
+  { label: "T-Nation", desc: "'How to Build Pure Strength' (original article)", url: "https://t-nation.com/t/5-3-1-how-to-build-pure-strength/281694" },
+  { label: "Garage Gym Reviews", desc: "5/3/1 program breakdown with examples", url: "https://www.garagegymreviews.com/5-3-1-workout" },
 ];
+
+function SubAccordion({
+  title,
+  open,
+  onToggle,
+  theme,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  theme: Theme;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.subSection, { borderColor: theme.border, backgroundColor: theme.background }]}>
+      <TouchableOpacity onPress={onToggle} style={styles.subHeader} activeOpacity={0.7}>
+        <Text style={[styles.subTitle, { color: theme.accent }]}>{title.toUpperCase()}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={theme.textSecondary} />
+      </TouchableOpacity>
+      {open && <View style={[styles.subBody, { borderTopColor: theme.border }]}>{children}</View>}
+    </View>
+  );
+}
 
 export function ProgramGuide({ theme }: { theme: Theme }) {
   const [expanded, setExpanded] = useState<SectionKey | null>("overview");
+  const [liftSub, setLiftSub] = useState<string | null>(null);
+  const [weekSub, setWeekSub] = useState<string | null>(null);
+  const [techSub, setTechSub] = useState<string | null>(null);
 
   const toggle = (key: SectionKey) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded((cur) => (cur === key ? null : key));
+  };
+
+  const toggleSub = <T extends string | null>(setter: React.Dispatch<React.SetStateAction<T>>, val: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setter((cur) => (cur === val ? null : val) as T);
   };
 
   const body = { color: theme.text, opacity: 0.88 };
@@ -149,9 +112,19 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
                 )}
 
                 {key === "lifts" && (
-                  <View>
-                    {["Squat", "Bench Press", "Deadlift", "Overhead Press"].map((l) => (
-                      <Text key={l} style={[styles.bullet, body]}>•  {l}</Text>
+                  <View style={styles.subWrap}>
+                    {LIFT_DESCRIPTIONS.map((l) => (
+                      <SubAccordion
+                        key={l.lift}
+                        title={l.lift}
+                        open={liftSub === l.lift}
+                        onToggle={() => toggleSub(setLiftSub, l.lift)}
+                        theme={theme}
+                      >
+                        {l.body.map((p, i) => (
+                          <Text key={i} style={[styles.para, body, i > 0 && { marginTop: spacing.sm }]}>{p}</Text>
+                        ))}
+                      </SubAccordion>
                     ))}
                   </View>
                 )}
@@ -163,23 +136,21 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
                 )}
 
                 {key === "cycle" && (
-                  <View>
-                    <Text style={[styles.subHeader, { color: theme.text }]}>Week 1 — 5/5/5+</Text>
-                    <Text style={[styles.line, body]}>Warm-up: 50%×5, 60%×5, 65%×5</Text>
-                    <Text style={[styles.line, body]}>Working sets: 75%×5, 85%×5+</Text>
-
-                    <Text style={[styles.subHeader, { color: theme.text }]}>Week 2 — 3/3/3+</Text>
-                    <Text style={[styles.line, body]}>Warm-up: 50%×5, 60%×5, 70%×5</Text>
-                    <Text style={[styles.line, body]}>Working sets: 80%×3, 90%×3+</Text>
-
-                    <Text style={[styles.subHeader, { color: theme.text }]}>Week 3 — 5/3/1+</Text>
-                    <Text style={[styles.line, body]}>Warm-up: 50%×5, 60%×5, 75%×5</Text>
-                    <Text style={[styles.line, body]}>Working sets: 85%×5, 90%×3, 95%×1+</Text>
-
-                    <Text style={[styles.subHeader, { color: theme.text }]}>Week 4 — Deload</Text>
-                    <Text style={[styles.line, body]}>Light sets: 40%×5, 50%×5, 60%×5</Text>
-
-                    <Text style={[styles.hint, { color: theme.textSecondary }]}>(×+ = AMRAP — do as many reps as possible on the final set)</Text>
+                  <View style={styles.subWrap}>
+                    {WEEK_DESCRIPTIONS.map((w) => (
+                      <SubAccordion
+                        key={w.week}
+                        title={w.week}
+                        open={weekSub === w.week}
+                        onToggle={() => toggleSub(setWeekSub, w.week)}
+                        theme={theme}
+                      >
+                        {w.rows.map((r, i) => (
+                          <Text key={i} style={[styles.line, body]}>{r}</Text>
+                        ))}
+                        {w.note && <Text style={[styles.hint, { color: theme.textSecondary }]}>{w.note}</Text>}
+                      </SubAccordion>
+                    ))}
                   </View>
                 )}
 
@@ -192,17 +163,22 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
                 )}
 
                 {key === "technique" && (
-                  <View>
+                  <View style={styles.subWrap}>
                     {TECHNIQUE.map((t) => (
-                      <View key={t.lift} style={styles.techLift}>
-                        <Text style={[styles.techLiftName, { color: theme.accent }]}>{t.lift.toUpperCase()}</Text>
+                      <SubAccordion
+                        key={t.lift}
+                        title={t.lift}
+                        open={techSub === t.lift}
+                        onToggle={() => toggleSub(setTechSub, t.lift)}
+                        theme={theme}
+                      >
                         <Text style={[styles.techLabel, { color: theme.text }]}>Setup</Text>
                         {t.setup.map((s, i) => <Text key={i} style={[styles.bullet, body]}>•  {s}</Text>)}
                         <Text style={[styles.techLabel, { color: theme.text }]}>Execution</Text>
                         {t.execution.map((s, i) => <Text key={i} style={[styles.bullet, body]}>•  {s}</Text>)}
                         <Text style={[styles.techLabel, { color: theme.text }]}>Common mistakes</Text>
                         {t.mistakes.map((s, i) => <Text key={i} style={[styles.bullet, body]}>•  {s}</Text>)}
-                      </View>
+                      </SubAccordion>
                     ))}
                   </View>
                 )}
@@ -217,19 +193,35 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
                     ))}
                   </View>
                 )}
+
+                {key === "learnMore" && (
+                  <View>
+                    {LEARN_MORE_LINKS.map((l) => (
+                      <TouchableOpacity
+                        key={l.url}
+                        onPress={() => Linking.openURL(l.url)}
+                        style={[styles.linkRow, { borderBottomColor: theme.border }]}
+                        activeOpacity={0.7}
+                        accessibilityRole="link"
+                        accessibilityLabel={`${l.label} — ${l.desc}`}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.linkLabel, { color: theme.text }]}>{l.label}</Text>
+                          <Text style={[styles.linkDesc, { color: theme.textSecondary }]}>{l.desc}</Text>
+                        </View>
+                        <Ionicons name="open-outline" size={16} color={theme.accent} />
+                      </TouchableOpacity>
+                    ))}
+                    <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
+                      Educational content only. Consult a qualified coach for personalized form feedback.
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
         );
       })}
-
-      <View style={[styles.learnMore, { borderColor: theme.border }]}>
-        <Text style={[styles.learnMoreTitle, { color: theme.text }]}>LEARN MORE</Text>
-        <Text style={[styles.bullet, body]}>•  5/3/1: The Simplest and Most Effective Training System — Jim Wendler's book, canonical source</Text>
-        <Text style={[styles.bullet, body]}>•  Stronger By Science — research-backed strength training content</Text>
-        <Text style={[styles.bullet, body]}>•  Alan Thrall / Untamed Strength — free YouTube form tutorials</Text>
-        <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>Educational content only. Consult a qualified coach for personalized form feedback.</Text>
-      </View>
     </View>
   );
 }
@@ -243,15 +235,18 @@ const styles = StyleSheet.create({
   para: { fontSize: 14, lineHeight: 22 },
   bullet: { fontSize: 14, lineHeight: 22, paddingLeft: 4 },
   line: { fontSize: 14, lineHeight: 22 },
-  subHeader: { fontSize: 14, fontWeight: "800", marginTop: spacing.sm, marginBottom: 2 },
   hint: { fontSize: 12, marginTop: spacing.sm, fontStyle: "italic" },
-  techLift: { marginBottom: spacing.md },
-  techLiftName: { fontSize: 13, fontWeight: "800", letterSpacing: 0.8, marginBottom: spacing.xs },
   techLabel: { fontSize: 13, fontWeight: "800", marginTop: spacing.sm, marginBottom: 2 },
   glossEntry: { marginBottom: spacing.sm + 2 },
   glossTerm: { fontSize: 14, fontWeight: "800" },
   glossDef: { fontSize: 13, lineHeight: 19, marginTop: 1 },
-  learnMore: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.md },
-  learnMoreTitle: { fontSize: 14, fontWeight: "800", letterSpacing: 0.6, marginBottom: spacing.sm },
-  disclaimer: { fontSize: 12, fontStyle: "italic", marginTop: spacing.md },
+  disclaimer: { fontSize: 12, fontStyle: "italic", marginTop: spacing.md, opacity: 0.75 },
+  linkRow: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.sm + 2, borderBottomWidth: StyleSheet.hairlineWidth, gap: spacing.sm },
+  linkLabel: { fontSize: 14, fontWeight: "700" },
+  linkDesc: { fontSize: 12, marginTop: 2 },
+  subWrap: { marginLeft: 12, gap: spacing.sm },
+  subSection: { borderWidth: 1, borderRadius: borderRadius.sm, overflow: "hidden" },
+  subHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm + 2 },
+  subTitle: { fontSize: 12, fontWeight: "800", letterSpacing: 0.7 },
+  subBody: { paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm + 2, borderTopWidth: 1 },
 });
