@@ -32,6 +32,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="ask-coach"
+        options={{
+          title: "Ask Coach",
+          headerShown: false,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="gear"
         options={{
           title: "Gear",
