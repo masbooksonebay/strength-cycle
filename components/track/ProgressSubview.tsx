@@ -227,7 +227,7 @@ function CycleCompareSection() {
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const cycles = useMemo(() => uniqueCycles(data.workouts), [data.workouts]);
   const [lift, setLift] = useState<string>(data.lifts[0]?.name || "Squat");
-  const [week, setWeek] = useState<string>("5/3/1");
+  const [week, setWeek] = useState<string>("5/5/5");
   const [cycleA, setCycleA] = useState<number | null>(cycles[1] ?? null);
   const [cycleB, setCycleB] = useState<number | null>(cycles[0] ?? null);
 
