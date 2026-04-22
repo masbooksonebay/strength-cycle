@@ -1,9 +1,27 @@
+/*
+ * Chat input layout — iMessage-style pill:
+ *
+ *   [ disclaimer line, centered, 11pt secondary text ]
+ *   ┌──────────────────────────────────────────────┐   ← pill container
+ *   │  Ask Coach anything about 5/3/1...     ( ↑ ) │     • marginH 12, marginB 8
+ *   └──────────────────────────────────────────────┘     • radius 22, bg #1C1C1E
+ *        12pt inset                 4pt → 28pt red       • padL 12, padR 4, padV 8
+ *        from screen edge           circle send
+ *   ──── keyboard top (≈8pt gap above keyboard) ────
+ *
+ * keyboardVerticalOffset=0 on iOS: the screen sits inside the bottom-tabs
+ * navigator which already reserves tabBarHeight at the bottom, so KAV sees
+ * distanceFromBottom = tabBarHeight and naturally aligns content to keyboard
+ * top without extra offset.
+ */
+
 import { useRef, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   StyleSheet,
   Keyboard,
@@ -14,7 +32,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { fetch as expoFetch } from "expo/fetch";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
 import { calcTM } from "../../lib/program";
@@ -22,7 +39,7 @@ import { spacing, borderRadius } from "../../constants/theme";
 
 const ASK_COACH_API_URL = "https://hybrid-rockstar-api.vercel.app/api/ask-coach";
 const CONNECT_ERROR_MESSAGE = "Can't reach Coach right now. Check your connection and try again.";
-const IOS_BLUE = "#0A84FF";
+const PILL_BG = "#1C1C1E";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -81,7 +98,6 @@ const RULES_SECTIONS: { title: string; body: string }[] = [
 
 export default function AskCoachScreen() {
   const { data, theme } = useApp();
-  const tabBarHeight = useBottomTabBarHeight();
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -203,24 +219,28 @@ export default function AskCoachScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? tabBarHeight : 0}
+      keyboardVerticalOffset={0}
     >
-      <View style={styles.brandHeader}>
-        <Text style={[styles.brandText, { color: theme.text }]}>STRENGTH CYCLE</Text>
-      </View>
-      <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View>
+          <View style={styles.brandHeader}>
+            <Text style={[styles.brandText, { color: theme.text }]}>STRENGTH CYCLE</Text>
+          </View>
+          <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
 
-      <View style={styles.segWrap}>
-        <Segmented
-          value={tab}
-          onChange={setTab}
-          theme={theme}
-          options={[
-            { key: "chat" as Tab, label: "Chat" },
-            { key: "rules" as Tab, label: "Rules" },
-          ]}
-        />
-      </View>
+          <View style={styles.segWrap}>
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              theme={theme}
+              options={[
+                { key: "chat" as Tab, label: "Chat" },
+                { key: "rules" as Tab, label: "Rules" },
+              ]}
+            />
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
 
       {tab === "chat" ? (
         <ChatView
@@ -253,6 +273,7 @@ function ChatView({
   sendMessage: (text: string) => void;
   scrollRef: React.RefObject<ScrollView | null>;
 }) {
+  const canSend = input.trim().length > 0;
   return (
     <>
       <ScrollView
@@ -292,7 +313,7 @@ function ChatView({
         Informational only. Consult a qualified coach or medical professional for personalized advice.
       </Text>
 
-      <View style={[styles.inputRow, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+      <View style={[styles.inputPill, { backgroundColor: PILL_BG }]}>
         <TextInput
           style={[styles.input, { color: theme.text }]}
           placeholder="Ask Coach anything about 5/3/1..."
@@ -307,13 +328,14 @@ function ChatView({
           autoCapitalize="sentences"
         />
         <TouchableOpacity
-          onPress={() => Keyboard.dismiss()}
-          hitSlop={10}
-          style={styles.doneBtn}
-          accessibilityLabel="Dismiss keyboard"
+          onPress={() => sendMessage(input)}
+          disabled={!canSend}
+          hitSlop={8}
+          style={[styles.sendBtn, { backgroundColor: theme.accent, opacity: canSend ? 1 : 0.4 }]}
+          accessibilityLabel="Send message"
           accessibilityRole="button"
         >
-          <Text style={[styles.doneText, { color: IOS_BLUE }]}>Done</Text>
+          <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </>
@@ -368,10 +390,25 @@ const styles = StyleSheet.create({
 
   disclaimer: { fontSize: 11, textAlign: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
 
-  inputRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 4, borderTopWidth: 1, gap: spacing.sm },
-  input: { flex: 1, fontSize: 15, paddingVertical: spacing.sm },
-  doneBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
-  doneText: { fontSize: 15, fontWeight: "600" },
+  inputPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 22,
+    paddingLeft: 12,
+    paddingRight: 4,
+    paddingVertical: 8,
+  },
+  input: { flex: 1, fontSize: 16, paddingVertical: 4 },
+  sendBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+  },
 
   rulesContent: { padding: spacing.md },
   rulesNote: { fontSize: 11, textAlign: "center", marginBottom: spacing.md },
