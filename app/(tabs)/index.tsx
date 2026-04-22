@@ -13,6 +13,7 @@ import { useTimer } from "../../lib/timer";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 import { DoneKeyboardToolbar } from "../../components/common/DoneKeyboardToolbar";
 import { TechniqueTipsModal } from "../../components/workout/TechniqueTipsModal";
+import { SheetBackdrop } from "../../components/common/SheetBackdrop";
 import { techniqueForLift } from "../../constants/programContent";
 
 export default function WorkoutScreen() {
@@ -277,6 +278,8 @@ export default function WorkoutScreen() {
       </ScrollView>
 
       <TimerPill />
+
+      <SheetBackdrop visible={rmPillModal || tmPillModal || logModal || addLiftModal || plateModal || techModal} />
 
       {/* 1RM Pill Modal */}
       <Modal visible={rmPillModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setRmPillModal(false)}>

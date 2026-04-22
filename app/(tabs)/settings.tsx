@@ -16,6 +16,7 @@ import {
 import { SHOW_IAP_UI } from "../../lib/config";
 import { ProgramGuide } from "../../components/ProgramGuide";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
+import { SheetBackdrop } from "../../components/common/SheetBackdrop";
 
 function Section({ title, children, theme }: { title: string; children: React.ReactNode; theme: any }) {
   return (
@@ -329,6 +330,8 @@ export default function SettingsScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      <SheetBackdrop visible={showRestTimer || showBarWeight || showPlates || showGuide} />
     </ScrollView>
   );
 }

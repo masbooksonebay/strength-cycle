@@ -6,6 +6,7 @@ import { WorkoutLog } from "../../lib/store";
 import { calcE1RM, WEEKS } from "../../lib/program";
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../common/NumericInputWithDone";
+import { SheetBackdrop } from "../common/SheetBackdrop";
 
 export function HistorySubview() {
   const { data, theme, deleteWorkout, updateWorkout } = useApp();
@@ -284,6 +285,8 @@ export function HistorySubview() {
           </View>
         )}
       </Modal>
+
+      <SheetBackdrop visible={showLiftPick || showCyclePick || showPhasePick || tagEdit !== null || detail !== null} />
     </View>
   );
 }
