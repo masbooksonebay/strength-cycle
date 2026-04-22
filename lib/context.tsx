@@ -39,6 +39,8 @@ interface AppCtx {
   addExtraSet: (liftName: string, set: ExtraSet) => void;
   removeExtraSet: (liftName: string, index: number) => void;
   changeUnits: (next: WeightUnit) => void;
+  replaceSampleWorkouts: (workouts: WorkoutLog[]) => void;
+  clearSampleWorkouts: () => void;
   reload: () => Promise<void>;
 }
 
@@ -55,6 +57,8 @@ const Ctx = createContext<AppCtx>({
   addExtraSet: () => {},
   removeExtraSet: () => {},
   changeUnits: () => {},
+  replaceSampleWorkouts: () => {},
+  clearSampleWorkouts: () => {},
   reload: async () => {},
 });
 
@@ -153,13 +157,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [data, persist]);
 
+  const replaceSampleWorkouts = useCallback((newWorkouts: WorkoutLog[]) => {
+    const real = data.workouts.filter((w) => w._isSampleData !== true);
+    const merged = [...real, ...newWorkouts];
+    merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    persist({ ...data, workouts: merged });
+  }, [data, persist]);
+
+  const clearSampleWorkouts = useCallback(() => {
+    persist({ ...data, workouts: data.workouts.filter((w) => w._isSampleData !== true) });
+  }, [data, persist]);
+
   const reload = useCallback(async () => { const d = await loadData(); setData(applyIapOverrides(d)); }, []);
 
   const theme = data.settings.darkMode ? darkTheme : lightTheme;
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, updateWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, reload }}>
+    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, updateWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, replaceSampleWorkouts, clearSampleWorkouts, reload }}>
       <TimerProvider defaultDuration={data.settings.restTimerDuration}>
         {children}
       </TimerProvider>

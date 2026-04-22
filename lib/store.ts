@@ -37,6 +37,7 @@ export interface WorkoutLog {
   cycle: number;
   sets: SetLog[];
   notes: string;
+  _isSampleData?: boolean;
 }
 
 export interface Settings {

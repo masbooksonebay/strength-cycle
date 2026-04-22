@@ -1,8 +1,10 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { buildSampleWorkouts, SAMPLE_DATA_ENABLED_KEY } from "../../lib/sampleData";
 import {
   BAR_PRESETS,
   DEFAULT_PLATES_LB,
@@ -39,6 +41,65 @@ function Row({ label, right, theme, last, info }: { label: string; right: React.
         <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
       </View>
       {right}
+    </View>
+  );
+}
+
+function DeveloperSection() {
+  const { data, theme, replaceSampleWorkouts, clearSampleWorkouts } = useApp();
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(SAMPLE_DATA_ENABLED_KEY).then((v) => {
+      if (v === "1") setEnabled(true);
+    });
+  }, []);
+
+  const persistEnabled = async (next: boolean) => {
+    setEnabled(next);
+    await AsyncStorage.setItem(SAMPLE_DATA_ENABLED_KEY, next ? "1" : "0");
+  };
+
+  const onToggle = (next: boolean) => {
+    if (next) {
+      const samples = buildSampleWorkouts(data.settings.precision, data.settings.rounding);
+      replaceSampleWorkouts(samples);
+      persistEnabled(true);
+      Alert.alert("Sample data loaded", "Sample data loaded. Check Track → Progress to see charts populate.");
+    } else {
+      Alert.alert(
+        "Clear sample data?",
+        "Clear all sample data? This will not affect any real workout history.",
+        [
+          { text: "Cancel", style: "cancel", onPress: () => setEnabled(true) },
+          {
+            text: "OK",
+            style: "destructive",
+            onPress: () => {
+              clearSampleWorkouts();
+              persistEnabled(false);
+            },
+          },
+        ],
+      );
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: theme.accent }]}>DEVELOPER</Text>
+      <Text style={[styles.devSubtitle, { color: theme.textSecondary }]}>(dev builds only)</Text>
+      <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={[styles.row, { alignItems: "flex-start" }]}>
+          <View style={{ flex: 1, paddingRight: spacing.md }}>
+            <Text style={[styles.rowLabel, { color: theme.text }]}>Load Sample Data</Text>
+            <Text style={[styles.devDesc, { color: theme.textSecondary }]}>
+              Seeds 12 cycles of sample workout data to test Progress tab charts. Toggle off to clear all seeded data.
+            </Text>
+          </View>
+          <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: theme.accent }} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -237,6 +298,8 @@ export default function SettingsScreen() {
         <Row label="Restore Data" theme={theme} last right={<Ionicons name="push-outline" size={18} color={theme.textSecondary} />} />
       </Section>
 
+      {__DEV__ && <DeveloperSection />}
+
       <Text style={[styles.version, { color: theme.textSecondary }]}>Strength Cycle v1.0.0</Text>
       <View style={{ height: 40 }} />
 
@@ -381,4 +444,6 @@ const styles = StyleSheet.create({
   customInput: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: 16, fontWeight: "600" },
   applyBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, borderRadius: borderRadius.sm },
   hint: { fontSize: 13, marginBottom: spacing.md, lineHeight: 18 },
+  devSubtitle: { fontSize: 11, marginBottom: spacing.sm, paddingLeft: spacing.xs, marginTop: -spacing.xs },
+  devDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
 });
