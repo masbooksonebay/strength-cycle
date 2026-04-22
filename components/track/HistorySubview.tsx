@@ -128,23 +128,31 @@ export function HistorySubview() {
       </ScrollView>
 
       {/* Lift Picker */}
-      <Modal visible={showLiftPick} transparent animationType="fade" onRequestClose={() => setShowLiftPick(false)}>
-        <TouchableOpacity style={styles.pickOverlay} activeOpacity={1} onPress={() => setShowLiftPick(false)}>
-          <View style={[styles.pickCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <Modal visible={showLiftPick} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowLiftPick(false)}>
+        <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter by Lift</Text>
+            <TouchableOpacity onPress={() => setShowLiftPick(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.lg }}>
             {liftOptions.map((n) => (
               <TouchableOpacity key={n} style={[styles.pickRow, { borderBottomColor: theme.border }, liftFilter === n && { backgroundColor: theme.accent + "20" }]} onPress={() => { setLiftFilter(n); setShowLiftPick(false); }}>
                 <Text style={[styles.pickText, { color: liftFilter === n ? theme.accent : theme.text, fontWeight: liftFilter === n ? "800" : "500" }]}>{n}</Text>
                 {liftFilter === n && <Ionicons name="checkmark" size={18} color={theme.accent} />}
               </TouchableOpacity>
             ))}
-          </View>
-        </TouchableOpacity>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Cycle Picker */}
-      <Modal visible={showCyclePick} transparent animationType="fade" onRequestClose={() => setShowCyclePick(false)}>
-        <TouchableOpacity style={styles.pickOverlay} activeOpacity={1} onPress={() => setShowCyclePick(false)}>
-          <View style={[styles.pickCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <Modal visible={showCyclePick} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowCyclePick(false)}>
+        <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter by Cycle</Text>
+            <TouchableOpacity onPress={() => setShowCyclePick(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.lg }}>
             <TouchableOpacity style={[styles.pickRow, { borderBottomColor: theme.border }, cycleFilter === "All" && { backgroundColor: theme.accent + "20" }]} onPress={() => { setCycleFilter("All"); setShowCyclePick(false); }}>
               <Text style={[styles.pickText, { color: cycleFilter === "All" ? theme.accent : theme.text, fontWeight: cycleFilter === "All" ? "800" : "500" }]}>All cycles</Text>
               {cycleFilter === "All" && <Ionicons name="checkmark" size={18} color={theme.accent} />}
@@ -155,14 +163,18 @@ export function HistorySubview() {
                 {cycleFilter === c && <Ionicons name="checkmark" size={18} color={theme.accent} />}
               </TouchableOpacity>
             ))}
-          </View>
-        </TouchableOpacity>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Phase Picker */}
-      <Modal visible={showPhasePick} transparent animationType="fade" onRequestClose={() => setShowPhasePick(false)}>
-        <TouchableOpacity style={styles.pickOverlay} activeOpacity={1} onPress={() => setShowPhasePick(false)}>
-          <View style={[styles.pickCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <Modal visible={showPhasePick} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowPhasePick(false)}>
+        <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter by Phase</Text>
+            <TouchableOpacity onPress={() => setShowPhasePick(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.lg }}>
             {(["All", ...WEEKS] as const).map((p) => {
               const label = p === "All" ? "All phases" : p;
               const active = phaseFilter === p;
@@ -173,17 +185,21 @@ export function HistorySubview() {
                 </TouchableOpacity>
               );
             })}
-          </View>
-        </TouchableOpacity>
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* Tag Edit Modal */}
-      <Modal visible={tagEdit !== null} transparent animationType="fade" onRequestClose={() => setTagEdit(null)}>
-        <KeyboardAvoidingView style={styles.tagOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={[styles.tagCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.tagTitle, { color: theme.text }]}>Edit cycle & phase</Text>
-            {tagEdit && <Text style={[styles.tagSub, { color: theme.textSecondary }]}>{tagEdit.exercise} · {new Date(tagEdit.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
-
+      <Modal visible={tagEdit !== null} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setTagEdit(null)}>
+        <KeyboardAvoidingView style={[styles.detailContainer, { backgroundColor: theme.background }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.sheetHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sheetTitle, { color: theme.text }]}>Edit cycle & phase</Text>
+              {tagEdit && <Text style={[styles.tagSub, { color: theme.textSecondary }]}>{tagEdit.exercise} · {new Date(tagEdit.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</Text>}
+            </View>
+            <TouchableOpacity onPress={() => setTagEdit(null)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: spacing.md }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             <Text style={[styles.tagLabel, { color: theme.textSecondary }]}>CYCLE</Text>
             <NumericInputWithDone
               style={[styles.tagInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
@@ -207,15 +223,15 @@ export function HistorySubview() {
               <TouchableOpacity onPress={() => setTagEdit(null)} style={[styles.tagBtn, { borderColor: theme.border }]}><Text style={[styles.tagBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={saveTagEdit} style={[styles.tagBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.tagBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Detail Modal */}
-      <Modal visible={detail !== null} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={detail !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setDetail(null)}>
         {detail && (
           <View style={[styles.detailContainer, { backgroundColor: theme.background }]}>
-            <View style={styles.detailHeader}>
+            <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.detailTitle, { color: theme.text }]}>{detail.exercise}</Text>
                 <Text style={[styles.detailSub, { color: theme.accent }]}>Cycle {detail.cycle} · {detail.week} · {new Date(detail.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</Text>
@@ -287,10 +303,9 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 12, fontWeight: "700" },
   tagPill: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   tagPillText: { fontSize: 13, fontWeight: "700" },
-  tagOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
-  tagCard: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.lg, width: "100%", maxWidth: 340 },
-  tagTitle: { fontSize: 17, fontWeight: "800" },
-  tagSub: { fontSize: 12, marginTop: 2, marginBottom: spacing.sm },
+  sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
+  sheetTitle: { fontSize: 20, fontWeight: "800" },
+  tagSub: { fontSize: 12, marginTop: 2 },
   tagLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.md, marginBottom: spacing.xs },
   tagInput: { borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, fontSize: 18, fontWeight: "800", textAlign: "center" },
   tagPhaseRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
@@ -300,13 +315,10 @@ const styles = StyleSheet.create({
   tagBtn: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingVertical: spacing.sm + 4, alignItems: "center" },
   tagBtnText: { fontSize: 15, fontWeight: "700" },
   cardLine: { fontSize: 13, marginTop: 4 },
-  pickOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: spacing.xl },
-  pickCard: { borderWidth: 1, borderRadius: borderRadius.md, overflow: "hidden" },
   pickRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 0.5 },
   pickText: { fontSize: 15 },
   detailContainer: { flex: 1 },
-  detailHeader: { flexDirection: "row", alignItems: "flex-start", padding: spacing.md, paddingTop: 56 },
-  detailTitle: { fontSize: 22, fontWeight: "800" },
+  detailTitle: { fontSize: 20, fontWeight: "800" },
   detailSub: { fontSize: 13, fontWeight: "600", marginTop: 2 },
   detailContent: { padding: spacing.lg },
   amrapBox: { borderWidth: 2, borderRadius: borderRadius.md, padding: spacing.lg, alignItems: "center", marginBottom: spacing.lg },

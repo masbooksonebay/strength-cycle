@@ -240,16 +240,20 @@ export default function SettingsScreen() {
       <View style={{ height: 40 }} />
 
       {/* Rest Timer Modal */}
-      <Modal visible={showRestTimer} transparent animationType="fade">
-        <KeyboardAvoidingView style={styles.overlayCenter} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={[styles.miniCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.miniTitle, { color: theme.text }]}>Rest Timer (seconds)</Text>
+      <Modal visible={showRestTimer} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setShowRestTimer(false)}>
+        <KeyboardAvoidingView style={[styles.guideContainer, { backgroundColor: theme.background }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.guideHeader}>
+            <Text style={[styles.guideTitle, { color: theme.text }]}>Rest Timer</Text>
+            <TouchableOpacity onPress={() => setShowRestTimer(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.guideContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+            <Text style={[styles.hint, { color: theme.textSecondary }]}>Default duration in seconds for the rest timer between sets.</Text>
             <NumericInputWithDone style={[styles.miniInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={restValue} onChangeText={setRestValue} keyboardType="numeric" autoFocus />
             <View style={styles.miniBtns}>
               <TouchableOpacity onPress={() => setShowRestTimer(false)} style={[styles.miniBtn, { borderColor: theme.border }]}><Text style={[styles.miniBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => { const v = parseInt(restValue, 10); if (v > 0) updateSettings({ restTimerDuration: v }); setShowRestTimer(false); }} style={[styles.miniBtn, { backgroundColor: theme.accent }]}><Text style={[styles.miniBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -362,7 +366,7 @@ const styles = StyleSheet.create({
   miniBtn: { flex: 1, borderWidth: 1, borderRadius: borderRadius.sm, paddingVertical: spacing.sm + 4, alignItems: "center" },
   miniBtnText: { fontSize: 15, fontWeight: "600" },
   guideContainer: { flex: 1 },
-  guideHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md, paddingTop: 56 },
+  guideHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm },
   guideTitle: { fontSize: 22, fontWeight: "800" },
   guideContent: { padding: spacing.lg },
   guideText: { fontSize: 14, lineHeight: 22 },

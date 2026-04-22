@@ -278,10 +278,13 @@ export default function WorkoutScreen() {
       <TimerPill />
 
       {/* 1RM Pill Modal */}
-      <Modal visible={rmPillModal} transparent animationType="fade" onRequestClose={() => setRmPillModal(false)}>
-        <KeyboardAvoidingView style={styles.pillOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit 1RM — {lift.name}</Text>
+      <Modal visible={rmPillModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setRmPillModal(false)}>
+        <KeyboardAvoidingView style={[styles.modalContainer, { backgroundColor: theme.background }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit 1RM — {lift.name}</Text>
+            <TouchableOpacity onPress={() => setRmPillModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Your estimated one rep max ({unitLabel})</Text>
             <NumericInputWithDone
               style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
@@ -295,15 +298,18 @@ export default function WorkoutScreen() {
               <TouchableOpacity onPress={() => setRmPillModal(false)} style={[styles.pillBtn, { borderColor: theme.border }]}><Text style={[styles.pillBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={saveRmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* TM Pill Modal */}
-      <Modal visible={tmPillModal} transparent animationType="fade" onRequestClose={() => setTmPillModal(false)}>
-        <KeyboardAvoidingView style={styles.pillOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={[styles.pillCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.pillCardTitle, { color: theme.text }]}>Edit Training Max — {lift.name}</Text>
+      <Modal visible={tmPillModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setTmPillModal(false)}>
+        <KeyboardAvoidingView style={[styles.modalContainer, { backgroundColor: theme.background }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.sheetHeader}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Edit TM — {lift.name}</Text>
+            <TouchableOpacity onPress={() => setTmPillModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
             <Text style={[styles.pillCardSub, { color: theme.textSecondary }]}>Default: {calcTM(lift.oneRepMax, s.tmPercentage)} {unitLabel} ({s.tmPercentage}% of 1RM)</Text>
             <NumericInputWithDone
               style={[styles.pillInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
@@ -322,7 +328,7 @@ export default function WorkoutScreen() {
               <TouchableOpacity onPress={() => setTmPillModal(false)} style={[styles.pillBtn, { borderColor: theme.border }]}><Text style={[styles.pillBtnText, { color: theme.textSecondary }]}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={saveTmPill} style={[styles.pillBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}><Text style={[styles.pillBtnText, { color: "#fff" }]}>Save</Text></TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -333,7 +339,7 @@ export default function WorkoutScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         >
-          <View style={styles.modalHeader}>
+          <View style={styles.sheetHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Log Workout</Text>
             <TouchableOpacity onPress={() => setLogModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
@@ -363,7 +369,7 @@ export default function WorkoutScreen() {
           style={[styles.modalContainer, { backgroundColor: theme.background }]}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <View style={styles.modalHeader}>
+          <View style={styles.sheetHeader}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Add Custom Lift</Text>
             <TouchableOpacity onPress={() => setAddLiftModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
@@ -378,17 +384,16 @@ export default function WorkoutScreen() {
       <TechniqueTipsModal visible={techModal} liftName={lift.name} onClose={() => setTechModal(false)} />
 
       {/* Plate Visual Modal */}
-      <Modal visible={plateModal} animationType="fade" transparent>
-        <View style={styles.plateOverlay}>
-          <View style={[styles.plateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.plateHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.plateTitle, { color: theme.text }]}>{plateModalWeight !== null ? formatWeight(plateModalWeight) : ""} {unitLabel}</Text>
-                <Text style={[styles.plateSubtitle, { color: theme.textSecondary }]}>{plateModalLabel}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setPlateModal(false)}><Ionicons name="close" size={26} color={theme.text} /></TouchableOpacity>
+      <Modal visible={plateModal} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setPlateModal(false)}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.sheetHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.plateTitle, { color: theme.text }]}>{plateModalWeight !== null ? formatWeight(plateModalWeight) : ""} {unitLabel}</Text>
+              <Text style={[styles.plateSubtitle, { color: theme.textSecondary }]}>{plateModalLabel}</Text>
             </View>
-
+            <TouchableOpacity onPress={() => setPlateModal(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
             {plateResult && <BarVisual plates={plateResult.plates} barWeight={s.barWeight} theme={theme} />}
 
             {plateResult && (
@@ -415,7 +420,7 @@ export default function WorkoutScreen() {
                 )}
               </View>
             )}
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -516,9 +521,7 @@ const styles = StyleSheet.create({
   headerPillLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.6 },
   headerPillValue: { fontSize: 15, fontWeight: "800" },
   headerPillUnit: { fontSize: 11, fontWeight: "600" },
-  pillOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: spacing.xl },
-  pillCard: { borderRadius: borderRadius.md, borderWidth: 1, padding: spacing.lg, width: "100%", maxWidth: 340 },
-  pillCardTitle: { fontSize: 17, fontWeight: "800", marginBottom: 4 },
+  sheetHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
   pillCardSub: { fontSize: 12, marginBottom: spacing.md },
   pillInput: { borderWidth: 1, borderRadius: borderRadius.sm, padding: spacing.md, fontSize: 24, fontWeight: "800", textAlign: "center" },
   pillResetLink: { marginTop: spacing.sm, alignItems: "center" },
@@ -558,8 +561,7 @@ const styles = StyleSheet.create({
   logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.lg },
   logBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md, paddingTop: 56 },
-  modalTitle: { fontSize: 22, fontWeight: "800" },
+  modalTitle: { fontSize: 20, fontWeight: "800", flex: 1 },
   modalContent: { padding: spacing.lg },
   modalLabel: { fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: spacing.xs, marginTop: spacing.md },
   modalValue: { fontSize: 18, fontWeight: "700" },
@@ -575,10 +577,7 @@ const styles = StyleSheet.create({
   notesInput: { borderWidth: 1, borderRadius: borderRadius.sm, padding: spacing.md, fontSize: 15, minHeight: 80, textAlignVertical: "top" },
   saveBtn: { borderRadius: borderRadius.sm, paddingVertical: 16, alignItems: "center", marginTop: spacing.lg },
   saveBtnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  plateOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: spacing.md },
-  plateCard: { borderRadius: borderRadius.md, borderWidth: 1, padding: spacing.lg },
-  plateHeader: { flexDirection: "row", alignItems: "flex-start" },
-  plateTitle: { fontSize: 28, fontWeight: "900" },
+  plateTitle: { fontSize: 22, fontWeight: "900" },
   plateSubtitle: { fontSize: 13, fontWeight: "600", marginTop: 2 },
   plateBody: { marginTop: spacing.sm },
   plateStat: { fontSize: 14, fontWeight: "500", marginTop: 4 },

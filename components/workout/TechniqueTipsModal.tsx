@@ -64,7 +64,7 @@ export function TechniqueTipsModal({ visible, liftName, onClose }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: 56, paddingBottom: spacing.sm, gap: spacing.sm },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
   title: { fontSize: 20, fontWeight: "800", letterSpacing: 0.3 },
   content: { padding: spacing.lg, paddingTop: spacing.sm },
   label: { fontSize: 12, fontWeight: "800", letterSpacing: 1, marginTop: spacing.md, marginBottom: spacing.xs },
