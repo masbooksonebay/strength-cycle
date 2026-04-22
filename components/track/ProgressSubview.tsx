@@ -155,7 +155,7 @@ function TMSection() {
       <SectionHeader title="TM Progression" subtitle="Your Training Max across completed cycles." />
       <LiftPicker value={lift} onChange={setLift} />
       {tmPoints.length === 0 ? (
-        <EmptyState message={`No cycle data yet for ${lift}. Log a working set in any cycle week to populate.`} />
+        <EmptyState message={`No cycle data yet for ${lift}. Complete a cycle to start tracking TM progression.`} />
       ) : (
         <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <BarChart
