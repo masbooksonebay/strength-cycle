@@ -321,7 +321,7 @@ function ChatView({
           value={input}
           onChangeText={setInput}
           onSubmitEditing={() => sendMessage(input)}
-          returnKeyType="send"
+          returnKeyType="default"
           multiline={false}
           blurOnSubmit={false}
           autoCorrect={false}
