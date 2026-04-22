@@ -8,7 +8,10 @@ export default function GearScreen() {
   const { theme } = useApp();
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
-      <Text style={[styles.disclosure, { color: theme.textSecondary, borderColor: theme.border }]}>{gearData.disclosure}</Text>
+      <View style={[styles.banner, { borderColor: theme.accent, backgroundColor: theme.accent + "12" }]}>
+        <Text style={[styles.bannerHeading, { color: theme.accent }]}>Equipment, Lifting Accessories & Supplements</Text>
+        <Text style={[styles.bannerSub, { color: theme.text }]}>Exclusive discounts coming soon.</Text>
+      </View>
       {gearData.categories.map((cat) => (
         <View key={cat.title} style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{cat.title}</Text>
@@ -49,7 +52,10 @@ export default function GearScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.md },
-  disclosure: { fontSize: 11, lineHeight: 16, textAlign: "center", paddingBottom: spacing.sm, marginBottom: spacing.md, borderBottomWidth: 1 },
+  banner: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.md },
+  bannerHeading: { fontSize: 16, fontWeight: "800", marginBottom: 4 },
+  bannerSub: { fontSize: 13, lineHeight: 19 },
+  disclosure: { fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: spacing.lg, paddingHorizontal: spacing.sm },
   section: { marginBottom: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: spacing.sm },
   card: { flexDirection: "row", alignItems: "center", borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm, borderWidth: 1, gap: spacing.sm + 2 },
