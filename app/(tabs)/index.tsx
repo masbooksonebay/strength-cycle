@@ -241,16 +241,26 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
 
         {lastAmrapSet?.isAmrap && (
-          <View style={[styles.e1rmCard, { backgroundColor: theme.card, borderColor: theme.accent }]}>
-            <View style={styles.e1rmTopRow}>
-              <Text style={[styles.e1rmLabel, { color: theme.accent }]}>AMRAP REPS</Text>
-              <View style={styles.repCounter}>
-                <TouchableOpacity onPress={() => setAmrapReps(Math.max(1, amrapReps - 1))} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="remove" size={18} color={theme.text} /></TouchableOpacity>
-                <Text style={[styles.repCount, { color: theme.text }]}>{amrapReps}</Text>
-                <TouchableOpacity onPress={() => setAmrapReps(amrapReps + 1)} style={[styles.repBtn, { borderColor: theme.border }]}><Ionicons name="add" size={18} color={theme.text} /></TouchableOpacity>
-              </View>
+          <View style={[styles.amrapCard, { backgroundColor: theme.card, borderColor: theme.accent }]}>
+            <View style={styles.amrapSide}>
+              <Text style={[styles.amrapLabel, { color: theme.accent }]}>AMRAP</Text>
             </View>
-            {e1rm && <Text style={[styles.e1rmValue, { color: theme.textSecondary }]}>e1RM <Text style={{ color: theme.accent, fontWeight: "800" }}>{e1rm} {unitLabel}</Text></Text>}
+            <View style={styles.amrapCenter}>
+              <TouchableOpacity onPress={() => setAmrapReps(Math.max(1, amrapReps - 1))} style={[styles.amrapBtn, { borderColor: theme.border }]} hitSlop={6}>
+                <Ionicons name="remove" size={22} color={theme.accent} />
+              </TouchableOpacity>
+              <Text style={[styles.amrapCount, { color: theme.accent }]}>{amrapReps}</Text>
+              <TouchableOpacity onPress={() => setAmrapReps(amrapReps + 1)} style={[styles.amrapBtn, { borderColor: theme.border }]} hitSlop={6}>
+                <Ionicons name="add" size={22} color={theme.accent} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.amrapSide, { alignItems: "flex-end" }]}>
+              {e1rm ? (
+                <Text style={[styles.amrapE1rm, { color: theme.accent }]}>e1RM <Text style={styles.amrapE1rmValue}>{e1rm}</Text> <Text style={styles.amrapE1rmUnit}>{unitLabel}</Text></Text>
+              ) : (
+                <Text style={[styles.amrapE1rm, { color: theme.accent, opacity: 0.4 }]}>e1RM —</Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -534,13 +544,18 @@ const styles = StyleSheet.create({
   removeBtn: { position: "absolute", top: 6, right: 6 },
   addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, paddingVertical: 10, marginBottom: spacing.sm },
   addSetText: { fontSize: 13, fontWeight: "600" },
-  e1rmCard: { borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, marginTop: spacing.md, borderWidth: 1 },
-  e1rmTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  e1rmLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 1 },
+  amrapCard: { flexDirection: "row", alignItems: "center", borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginTop: spacing.md, borderWidth: 1 },
+  amrapSide: { flex: 1, justifyContent: "center" },
+  amrapCenter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  amrapLabel: { fontSize: 12, fontWeight: "800", letterSpacing: 1.2 },
+  amrapBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  amrapCount: { fontSize: 36, fontWeight: "900", minWidth: 48, textAlign: "center" },
+  amrapE1rm: { fontSize: 12, fontWeight: "700", letterSpacing: 0.4 },
+  amrapE1rmValue: { fontSize: 14, fontWeight: "800" },
+  amrapE1rmUnit: { fontSize: 11, fontWeight: "600" },
   repCounter: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   repBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   repCount: { fontSize: 20, fontWeight: "800", minWidth: 36, textAlign: "center" },
-  e1rmValue: { fontSize: 13, fontWeight: "600", marginTop: 2, textAlign: "right" },
   logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.lg },
   logBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   modalContainer: { flex: 1 },
