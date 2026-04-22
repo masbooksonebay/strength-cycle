@@ -162,7 +162,7 @@ function TMSection() {
             data={barData}
             width={width}
             height={180}
-            barWidth={Math.max(18, Math.floor(width / Math.max(barData.length * 2, 2)))}
+            barWidth={Math.min(72, Math.max(18, Math.floor(width / Math.max(barData.length * 2, 2))))}
             spacing={Math.max(16, Math.floor(width / Math.max(barData.length * 2, 2)))}
             frontColor={theme.accent}
             yAxisColor={theme.border}
