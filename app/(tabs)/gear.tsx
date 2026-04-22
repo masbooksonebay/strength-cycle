@@ -34,7 +34,7 @@ export default function GearScreen() {
                 <Ionicons name="storefront-outline" size={20} color={theme.textSecondary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.brand, { color: theme.textSecondary }]}>strengthcycle.shop</Text>
+                <Text style={[styles.brand, { color: theme.textSecondary }]}>Strength Cycle</Text>
                 <Text style={[styles.description, { color: theme.textSecondary }]}>Coming soon</Text>
                 <View style={[styles.comingPill, { borderColor: theme.border }]}>
                   <Text style={[styles.comingPillText, { color: theme.textSecondary }]}>Coming Soon</Text>
