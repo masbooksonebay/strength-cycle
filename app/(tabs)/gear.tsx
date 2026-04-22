@@ -44,6 +44,7 @@ export default function GearScreen() {
           )}
         </View>
       ))}
+      <Text style={[styles.disclosure, { color: theme.textSecondary }]}>{gearData.disclosure}</Text>
       <View style={{ height: 40 }} />
     </ScrollView>
   );
