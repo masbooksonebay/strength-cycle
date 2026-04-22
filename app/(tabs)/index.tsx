@@ -121,7 +121,6 @@ export default function WorkoutScreen() {
     addWorkout(workout);
     setLogModal(false);
     setLogNotes("");
-    timer.start(s.restTimerDuration);
     Alert.alert("Logged", `${lift.name} — ${week} — ${amrapReps} reps @ ${lastAmrapWeight} ${unitLabel}`);
   };
 
