@@ -91,7 +91,7 @@ export function HistorySubview() {
       <ScrollView contentContainerStyle={styles.content}>
         {filtered.length === 0 ? (
           <Text style={[styles.empty, { color: theme.textSecondary }]}>
-            {data.workouts.length === 0 ? "No workouts logged yet. Complete a workout from the Current tab." : "No workouts match these filters."}
+            {data.workouts.length === 0 ? "No workouts logged yet. Complete a workout from the Workout tab." : "No workouts match these filters."}
           </Text>
         ) : (
           Array.from(grouped.entries()).map(([date, workouts]) => (
