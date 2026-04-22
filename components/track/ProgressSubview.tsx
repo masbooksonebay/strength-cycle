@@ -152,7 +152,7 @@ function TMSection() {
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="TM Progression" subtitle="Training Max derived per cycle from logged working sets" />
+      <SectionHeader title="TM Progression" subtitle="Your Training Max across completed cycles." />
       <LiftPicker value={lift} onChange={setLift} />
       {tmPoints.length === 0 ? (
         <EmptyState message={`No cycle data yet for ${lift}. Log a working set in any cycle week to populate.`} />
