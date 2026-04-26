@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, LayoutChangeEvent, LayoutAnimation, Platform, UIManager } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LineChart, BarChart } from "react-native-gifted-charts";
 import { useApp } from "../../lib/context";
@@ -12,6 +12,10 @@ import {
   uniqueCycles,
 } from "../../lib/analytics";
 import { spacing, borderRadius } from "../../constants/theme";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export function ProgressSubview() {
   const { data, theme } = useApp();
@@ -81,6 +85,7 @@ function E1RMSection() {
   const { data, theme } = useApp();
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const [lift, setLift] = useState<string>(data.lifts[0]?.name || "Squat");
+  const [plotWidth, setPlotWidth] = useState<number | null>(null);
 
   const points = useMemo(() => e1rmSeriesForLift(data.workouts, lift), [data.workouts, lift]);
   const chartData = useMemo(() => points.map((p, i) => ({
@@ -89,9 +94,25 @@ function E1RMSection() {
     showLabel: i === 0 || i === points.length - 1 || i === Math.floor(points.length / 2),
   })), [points]);
 
-  const width = Dimensions.get("window").width - spacing.md * 2 - 24;
   const maxY = points.length ? Math.max(...points.map((p) => p.value)) : 0;
   const minY = points.length ? Math.min(...points.map((p) => p.value)) : 0;
+
+  // Apple Health-style data-relative Y-axis: ~8% padding below min, ~8% above max,
+  // snapped to nearest 10. yAxisOffset shifts data down internally — see
+  // gifted-charts-core/dist/utils/index.js:1092 (adjustToOffset). maxValue is the
+  // *shifted* max, so we pass (yMax - yMin) rather than yMax directly.
+  const yMin = Math.floor((minY * 0.92) / 10) * 10;
+  const yMax = Math.ceil((maxY * 1.08) / 10) * 10;
+  const yStep = Math.max(10, Math.ceil((yMax - yMin) / 4 / 10) * 10);
+  const yMaxShifted = yStep * 4;
+
+  // Measure the real container width on layout — accounts for ScrollView + chartCard padding
+  // that a window-based calc can't see. Subtract gifted-charts' y-axis label area (~35px) and
+  // a small right buffer so the last data point + label aren't clipped.
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const next = Math.max(100, Math.floor(e.nativeEvent.layout.width - 35 - 12));
+    if (next !== plotWidth) setPlotWidth(next);
+  };
 
   return (
     <View style={styles.section}>
@@ -101,27 +122,38 @@ function E1RMSection() {
         <EmptyState message={`No AMRAP data yet for ${lift}. Log an AMRAP set to populate this chart.`} />
       ) : (
         <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <LineChart
-            data={chartData}
-            width={width}
-            height={180}
-            hideDataPoints={false}
-            color={theme.accent}
-            dataPointsColor={theme.accent}
-            thickness={2}
-            initialSpacing={10}
-            spacing={Math.max(20, Math.floor(width / Math.max(chartData.length, 1)))}
-            yAxisColor={theme.border}
-            xAxisColor={theme.border}
-            yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
-            xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
-            noOfSections={3}
-            maxValue={maxY + 10}
-            yAxisOffset={Math.max(0, minY - 10)}
-            curved={false}
-            rulesColor={theme.border}
-            hideRules={false}
-          />
+          <View style={styles.chartMeasure} onLayout={handleLayout}>
+            {plotWidth !== null && (
+              <LineChart
+                data={chartData}
+                width={plotWidth}
+                height={180}
+                hideDataPoints={false}
+                color={theme.accent}
+                dataPointsColor={theme.accent}
+                thickness={2}
+                initialSpacing={10}
+                spacing={Math.max(20, Math.floor(plotWidth / Math.max(chartData.length, 1)))}
+                yAxisColor={theme.border}
+                xAxisColor={theme.border}
+                yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
+                noOfSections={4}
+                stepValue={yStep}
+                maxValue={yMaxShifted}
+                yAxisOffset={yMin}
+                roundToDigits={0}
+                areaChart
+                startFillColor={theme.accent}
+                endFillColor={theme.accent}
+                startOpacity={0.25}
+                endOpacity={0}
+                curved={false}
+                rulesColor={theme.border}
+                hideRules={false}
+              />
+            )}
+          </View>
           <View style={styles.chartFooter}>
             <Text style={[styles.chartFooterText, { color: theme.textSecondary }]}>
               Latest: <Text style={{ color: theme.accent, fontWeight: "800" }}>{points[points.length - 1].value} {unitLabel}</Text>
@@ -139,6 +171,7 @@ function TMSection() {
   const { data, theme } = useApp();
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
   const [lift, setLift] = useState<string>(data.lifts[0]?.name || "Squat");
+  const [plotWidth, setPlotWidth] = useState<number | null>(null);
 
   const tmPoints = useMemo(() => tmSeriesForLift(data.workouts, lift), [data.workouts, lift]);
   const barData = useMemo(() => tmPoints.map((p) => ({
@@ -147,8 +180,14 @@ function TMSection() {
     frontColor: theme.accent,
   })), [tmPoints, theme.accent]);
 
-  const width = Dimensions.get("window").width - spacing.md * 2 - 24;
   const maxY = tmPoints.length ? Math.max(...tmPoints.map((p) => p.tm)) : 0;
+
+  // Same pattern as E1RMSection — measure actual container width, subtract y-axis label
+  // area (~35px) and a right buffer so the last bar isn't clipped.
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const next = Math.max(100, Math.floor(e.nativeEvent.layout.width - 35 - 12));
+    if (next !== plotWidth) setPlotWidth(next);
+  };
 
   return (
     <View style={styles.section}>
@@ -158,21 +197,25 @@ function TMSection() {
         <EmptyState message={`No cycle data yet for ${lift}. Complete a cycle to start tracking TM progression.`} />
       ) : (
         <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <BarChart
-            data={barData}
-            width={width}
-            height={180}
-            barWidth={Math.min(72, Math.max(18, Math.floor(width / Math.max(barData.length * 2, 2))))}
-            spacing={Math.max(16, Math.floor(width / Math.max(barData.length * 2, 2)))}
-            frontColor={theme.accent}
-            yAxisColor={theme.border}
-            xAxisColor={theme.border}
-            yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
-            xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
-            noOfSections={3}
-            maxValue={maxY + 10}
-            rulesColor={theme.border}
-          />
+          <View style={styles.chartMeasure} onLayout={handleLayout}>
+            {plotWidth !== null && (
+              <BarChart
+                data={barData}
+                width={plotWidth}
+                height={180}
+                barWidth={Math.min(72, Math.max(18, Math.floor(plotWidth / Math.max(barData.length * 2, 2))))}
+                spacing={Math.max(16, Math.floor(plotWidth / Math.max(barData.length * 2, 2)))}
+                frontColor={theme.accent}
+                yAxisColor={theme.border}
+                xAxisColor={theme.border}
+                yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
+                noOfSections={3}
+                maxValue={maxY + 10}
+                rulesColor={theme.border}
+              />
+            )}
+          </View>
           <View style={styles.chartFooter}>
             <Text style={[styles.chartFooterText, { color: theme.textSecondary }]}>
               Latest TM: <Text style={{ color: theme.accent, fontWeight: "800" }}>{tmPoints[tmPoints.length - 1].tm} {unitLabel}</Text>
@@ -186,10 +229,21 @@ function TMSection() {
 }
 
 // Section (c) — AMRAP rep history table
+const AMRAP_DEFAULT_VISIBLE = 5;
+
 function AmrapSection() {
   const { data, theme } = useApp();
   const [lift, setLift] = useState<string>(data.lifts[0]?.name || "Squat");
+  const [expanded, setExpanded] = useState(false);
   const rows = useMemo(() => amrapTableForLift(data.workouts, lift), [data.workouts, lift]);
+
+  const canTruncate = rows.length > AMRAP_DEFAULT_VISIBLE;
+  const visibleRows = expanded || !canTruncate ? rows : rows.slice(0, AMRAP_DEFAULT_VISIBLE);
+
+  const toggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((v) => !v);
+  };
 
   return (
     <View style={styles.section}>
@@ -198,22 +252,31 @@ function AmrapSection() {
       {rows.length === 0 ? (
         <EmptyState message={`No AMRAP history yet for ${lift}.`} />
       ) : (
-        <View style={[styles.table, { borderColor: theme.border, backgroundColor: theme.card }]}>
-          <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.textSecondary, fontWeight: "800" }]}>CYCLE</Text>
-            <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>5/5/5</Text>
-            <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>3/3/3</Text>
-            <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>5/3/1</Text>
-          </View>
-          {rows.map((r, idx) => (
-            <View key={r.cycle} style={[styles.tableRow, { borderBottomColor: theme.border, borderBottomWidth: idx === rows.length - 1 ? 0 : 0.5 }]}>
-              <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.text, fontWeight: "700" }]}>{r.cycle}</Text>
-              <Text style={[styles.tableCell, { color: theme.text }]}>{r.w555 ?? "—"}</Text>
-              <Text style={[styles.tableCell, { color: theme.text }]}>{r.w333 ?? "—"}</Text>
-              <Text style={[styles.tableCell, { color: theme.text }]}>{r.w531 ?? "—"}</Text>
+        <>
+          <View style={[styles.table, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.textSecondary, fontWeight: "800" }]}>CYCLE</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>5/5/5</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>3/3/3</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>5/3/1</Text>
             </View>
-          ))}
-        </View>
+            {visibleRows.map((r, idx) => (
+              <View key={r.cycle} style={[styles.tableRow, { borderBottomColor: theme.border, borderBottomWidth: idx === visibleRows.length - 1 ? 0 : 0.5 }]}>
+                <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.text, fontWeight: "700" }]}>{r.cycle}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.w555 ?? "—"}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.w333 ?? "—"}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.w531 ?? "—"}</Text>
+              </View>
+            ))}
+          </View>
+          {canTruncate && (
+            <TouchableOpacity onPress={toggle} style={styles.amrapToggle} activeOpacity={0.6}>
+              <Text style={[styles.amrapToggleText, { color: theme.accent }]}>
+                {expanded ? "Show Recent Only" : `Show All ${rows.length} Cycles`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );
@@ -347,6 +410,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 12, fontWeight: "700" },
   pickerLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: spacing.sm },
   chartCard: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md, marginTop: spacing.xs },
+  chartMeasure: { alignSelf: "stretch", minHeight: 180 },
   chartFooter: { marginTop: spacing.sm },
   chartFooterText: { fontSize: 12 },
   empty: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.lg, marginTop: spacing.sm, alignItems: "center" },
@@ -356,6 +420,8 @@ const styles = StyleSheet.create({
   tableHead: { borderBottomWidth: 1 },
   tableCell: { flex: 1, fontSize: 13, textAlign: "center" },
   tableCellFirst: { flex: 0.7, textAlign: "left" },
+  amrapToggle: { alignItems: "center", paddingVertical: spacing.sm + 2, marginTop: spacing.xs },
+  amrapToggleText: { fontSize: 13, fontWeight: "700", letterSpacing: 0.3 },
   compareRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   compareCard: { flex: 1, borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.md },
   compareTitle: { fontSize: 13, fontWeight: "800", letterSpacing: 0.5, marginBottom: spacing.sm },
