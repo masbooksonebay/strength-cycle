@@ -222,23 +222,16 @@ export default function AskCoachScreen() {
       keyboardVerticalOffset={0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View>
-          <View style={styles.brandHeader}>
-            <Text style={[styles.brandText, { color: theme.text }]}>STRENGTH CYCLE</Text>
-          </View>
-          <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
-
-          <View style={styles.segWrap}>
-            <Segmented
-              value={tab}
-              onChange={setTab}
-              theme={theme}
-              options={[
-                { key: "chat" as Tab, label: "Chat" },
-                { key: "rules" as Tab, label: "Rules" },
-              ]}
-            />
-          </View>
+        <View style={styles.segWrap}>
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            theme={theme}
+            options={[
+              { key: "chat" as Tab, label: "Chat" },
+              { key: "rules" as Tab, label: "Guide" },
+            ]}
+          />
         </View>
       </TouchableWithoutFeedback>
 
@@ -376,9 +369,6 @@ function RulesView({ theme }: { theme: any }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  brandHeader: { alignItems: "center", paddingTop: 52, paddingBottom: spacing.xs + 2 },
-  brandText: { fontSize: 22, fontWeight: "900", letterSpacing: 4 },
-  brandLine: { width: "100%", height: 2 },
   segWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
 
   chatScroll: { flex: 1 },

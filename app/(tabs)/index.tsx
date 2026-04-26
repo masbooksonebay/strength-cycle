@@ -14,7 +14,6 @@ import { NumericInputWithDone } from "../../components/common/NumericInputWithDo
 import { DoneKeyboardToolbar } from "../../components/common/DoneKeyboardToolbar";
 import { TechniqueTipsModal } from "../../components/workout/TechniqueTipsModal";
 import { SheetBackdrop } from "../../components/common/SheetBackdrop";
-import { techniqueForLift } from "../../constants/programContent";
 
 export default function WorkoutScreen() {
   const { data, theme, addWorkout, addExtraSet, removeExtraSet, addLift, updateLift, updateSettings } = useApp();
@@ -36,7 +35,10 @@ export default function WorkoutScreen() {
   const [techModal, setTechModal] = useState(false);
 
   const lifts = data.lifts;
-  const lift = lifts[liftIdx] || lifts[0];
+  const isAddSlot = liftIdx >= lifts.length;
+  const lift = isAddSlot
+    ? { name: "+", oneRepMax: 100, notes: "", isCustom: false }
+    : (lifts[liftIdx] || lifts[0]);
   const week = WEEKS[weekIdx];
   const programSets = WEEK_SETS[week];
   const s = data.settings;
@@ -45,13 +47,12 @@ export default function WorkoutScreen() {
   const units = s.units;
   const unitLabel = units === "lb" ? "lbs" : "kg";
   const tm = lift.trainingMax ?? calcTM(lift.oneRepMax, s.tmPercentage);
-  const extras = data.extraSets[lift.name] || [];
+  const extras = isAddSlot ? [] : (data.extraSets[lift.name] || []);
 
   const swipeLift = (dir: 1 | -1) => {
-    const next = liftIdx + dir;
-    if (next < 0) setLiftIdx(lifts.length - 1);
-    else if (next >= lifts.length) handleAddLiftTap();
-    else setLiftIdx(next);
+    const total = lifts.length + 1; // +1 for the synthetic "+" carousel slot
+    const next = (liftIdx + dir + total) % total;
+    setLiftIdx(next);
   };
 
   const handleAddLiftTap = () => {
@@ -143,26 +144,37 @@ export default function WorkoutScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <View style={styles.liftNameRow}>
-            <Text style={[styles.liftName, { color: theme.text }]}>{lift.name}</Text>
-            {techniqueForLift(lift.name) && (
+            {isAddSlot ? (
               <TouchableOpacity
-                onPress={() => setTechModal(true)}
-                style={styles.infoBtn}
-                hitSlop={10}
-                accessibilityLabel={`View technique tips for ${lift.name}`}
+                onPress={handleAddLiftTap}
+                hitSlop={12}
+                accessibilityLabel="Add custom lift"
                 accessibilityRole="button"
               >
-                <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+                <Ionicons name="add" size={28} color={theme.text} />
               </TouchableOpacity>
+            ) : (
+              <>
+                <Text style={[styles.liftName, { color: theme.text }]}>{lift.name}</Text>
+                <TouchableOpacity
+                  onPress={() => setTechModal(true)}
+                  style={styles.infoBtn}
+                  hitSlop={10}
+                  accessibilityLabel={`View technique tips for ${lift.name}`}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="information-circle-outline" size={20} color={theme.textSecondary} />
+                </TouchableOpacity>
+              </>
             )}
           </View>
           <View style={styles.pillRow}>
-            <TouchableOpacity onPress={openRmPill} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <TouchableOpacity onPress={openRmPill} disabled={isAddSlot} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
               <Text style={[styles.headerPillLabel, { color: theme.textSecondary }]}>1RM</Text>
               <Text style={[styles.headerPillValue, { color: theme.text }]}>{lift.oneRepMax}</Text>
               <Text style={[styles.headerPillUnit, { color: theme.textSecondary }]}>{unitLabel}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={openTmPill} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <TouchableOpacity onPress={openTmPill} disabled={isAddSlot} style={[styles.headerPill, { borderColor: theme.border, backgroundColor: theme.card }]}>
               <Text style={[styles.headerPillLabel, { color: theme.textSecondary }]}>TM</Text>
               <Text style={[styles.headerPillValue, { color: theme.accent }]}>{tm}</Text>
               <Text style={[styles.headerPillUnit, { color: theme.textSecondary }]}>{unitLabel}</Text>
@@ -186,7 +198,7 @@ export default function WorkoutScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {programSets.map((set, i) => {
           const weight = calcWeight(tm, set.percentage, precision, rounding);
-          const lastReps = getLastReps(data.workouts, lift.name, week, set.percentage);
+          const lastAmrap = getLastReps(data.workouts, lift.name, week, set.percentage);
           const isLastAmrap = i === programSets.length - 1 && set.isAmrap;
           const plates = calculatePlates(weight, s.barWeight, s.availablePlates, precision, rounding);
           const breakdown = formatPlateBreakdown(plates.plates);
@@ -203,7 +215,11 @@ export default function WorkoutScreen() {
                   {isLastAmrap && <Text style={{ color: theme.accent }}> (AMRAP)</Text>}
                 </Text>
                 <Text style={[styles.plateLine, { color: theme.textSecondary }]} numberOfLines={1}>{breakdownLine}</Text>
-                {lastReps !== null && <Text style={[styles.lastReps, { color: theme.textSecondary }]}>Last: {lastReps} reps</Text>}
+                {set.isAmrap && (
+                  <Text style={[styles.lastReps, { color: theme.textSecondary }]}>
+                    {lastAmrap !== null ? `Last: ${lastAmrap.reps} reps @ ${formatWeight(lastAmrap.weight)} ${unitLabel}` : "No history yet"}
+                  </Text>
+                )}
               </View>
               <Text style={[styles.setWeight, { color: set.isWarmup ? theme.textSecondary : theme.text }]}>{formatWeight(weight)} <Text style={styles.lbsText}>{unitLabel}</Text></Text>
               <View style={[styles.setBar, { backgroundColor: theme.accent + "30" }]}>
@@ -235,7 +251,13 @@ export default function WorkoutScreen() {
           );
         })}
 
-        <TouchableOpacity style={[styles.addSetBtn, { borderColor: theme.border }]} onPress={() => addExtraSet(lift.name, { percentage: programSets[programSets.length - 1]?.percentage || 75, reps: 5 })}>
+        <TouchableOpacity
+          style={[styles.addSetBtn, { borderColor: theme.border }]}
+          onPress={() => {
+            if (isAddSlot) return;
+            addExtraSet(lift.name, { percentage: programSets[programSets.length - 1]?.percentage || 75, reps: 5 });
+          }}
+        >
           <Ionicons name="add" size={18} color={theme.accent} />
           <Text style={[styles.addSetText, { color: theme.accent }]}>Add Set</Text>
         </TouchableOpacity>
@@ -265,7 +287,13 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={[styles.logBtn, { backgroundColor: theme.accent }]} onPress={() => setLogModal(true)}>
+        <TouchableOpacity
+          style={[styles.logBtn, { backgroundColor: theme.accent }]}
+          onPress={() => {
+            if (isAddSlot) return;
+            setLogModal(true);
+          }}
+        >
           <Ionicons name="add-circle-outline" size={20} color="#fff" />
           <Text style={styles.logBtnText}>Add to Log</Text>
         </TouchableOpacity>
@@ -550,12 +578,12 @@ const styles = StyleSheet.create({
   removeBtn: { position: "absolute", top: 6, right: 6 },
   addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, paddingVertical: 10, marginBottom: spacing.sm },
   addSetText: { fontSize: 13, fontWeight: "600" },
-  amrapCard: { flexDirection: "row", alignItems: "center", borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginTop: spacing.md, borderWidth: 1 },
-  amrapSpacer: { flex: 1, minWidth: 24 },
-  amrapCenter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 20 },
+  amrapCard: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginTop: spacing.md, borderWidth: 1 },
+  amrapSpacer: { width: 24 },
+  amrapCenter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   amrapLabel: { fontSize: 14, fontWeight: "700", letterSpacing: 1.5, textAlign: "left" },
-  amrapBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  amrapCount: { fontSize: 36, fontWeight: "700", minWidth: 48, textAlign: "center" },
+  amrapBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  amrapCount: { fontSize: 32, fontWeight: "700", minWidth: 40, textAlign: "center" },
   amrapE1rmStack: { flexDirection: "column", alignItems: "center", justifyContent: "center" },
   amrapE1rmLabel: { fontSize: 11, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 },
   amrapE1rmValue: { fontSize: 18, fontWeight: "700", lineHeight: 20 },
