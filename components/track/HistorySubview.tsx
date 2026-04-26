@@ -74,17 +74,17 @@ export function HistorySubview() {
       <View style={[styles.filterBar, { borderBottomColor: theme.border }]}>
         <TouchableOpacity style={[styles.filterBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setShowLiftPick(true)}>
           <Ionicons name="barbell-outline" size={14} color={theme.textSecondary} />
-          <Text style={[styles.filterText, { color: theme.text }]}>{liftFilter}</Text>
+          <Text style={[styles.filterText, { color: theme.text }]} numberOfLines={1}>{liftFilter === "All" ? "All lifts" : liftFilter}</Text>
           <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity style={[styles.filterBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setShowCyclePick(true)}>
           <Ionicons name="repeat-outline" size={14} color={theme.textSecondary} />
-          <Text style={[styles.filterText, { color: theme.text }]}>{cycleFilter === "All" ? "All cycles" : `Cycle ${cycleFilter}`}</Text>
+          <Text style={[styles.filterText, { color: theme.text }]} numberOfLines={1}>{cycleFilter === "All" ? "All cycles" : `Cycle ${cycleFilter}`}</Text>
           <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
         </TouchableOpacity>
         <TouchableOpacity style={[styles.filterBtn, { borderColor: theme.border, backgroundColor: theme.card }]} onPress={() => setShowPhasePick(true)}>
           <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
-          <Text style={[styles.filterText, { color: theme.text }]}>{phaseFilter === "All" ? "All phases" : phaseFilter}</Text>
+          <Text style={[styles.filterText, { color: theme.text }]} numberOfLines={1}>{phaseFilter === "All" ? "All phases" : phaseFilter}</Text>
           <Ionicons name="chevron-down" size={14} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -138,7 +138,7 @@ export function HistorySubview() {
           <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.lg }}>
             {liftOptions.map((n) => (
               <TouchableOpacity key={n} style={[styles.pickRow, { borderBottomColor: theme.border }, liftFilter === n && { backgroundColor: theme.accent + "20" }]} onPress={() => { setLiftFilter(n); setShowLiftPick(false); }}>
-                <Text style={[styles.pickText, { color: liftFilter === n ? theme.accent : theme.text, fontWeight: liftFilter === n ? "800" : "500" }]}>{n}</Text>
+                <Text style={[styles.pickText, { color: liftFilter === n ? theme.accent : theme.text, fontWeight: liftFilter === n ? "800" : "500" }]}>{n === "All" ? "All lifts" : n}</Text>
                 {liftFilter === n && <Ionicons name="checkmark" size={18} color={theme.accent} />}
               </TouchableOpacity>
             ))}
@@ -293,8 +293,8 @@ export function HistorySubview() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  filterBar: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: 1 },
-  filterBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
+  filterBar: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: 1 },
+  filterBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderRadius: borderRadius.sm, paddingHorizontal: spacing.sm + 2, paddingVertical: 6 },
   filterText: { fontSize: 13, fontWeight: "600" },
   content: { padding: spacing.md },
   empty: { textAlign: "center", marginTop: 60, fontSize: 14 },
