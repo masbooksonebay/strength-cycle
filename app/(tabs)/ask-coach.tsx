@@ -9,15 +9,18 @@
  *        from screen edge           circle send
  *   ──── keyboard top (≈8pt gap above keyboard) ────
  *
- * keyboardVerticalOffset on iOS = nav header height (via useHeaderHeight).
- * The tabs navigator renders an "Ask Coach" header for this screen (per the
- * design rule that interior screens show their feature name), so KAV must
- * compensate for it — without the offset, the input pill renders behind the
- * keyboard on tall-header devices (e.g., iPhone Pro Max with Dynamic Island).
- * The bottom tabBar inset is already covered by KAV's distanceFromBottom.
+ * Keyboard avoidance: manual Keyboard.addListener tracking instead of stock RN's
+ * KeyboardAvoidingView, which is unreliable in production iOS builds (the JS-side
+ * timing races with native keyboard frame events under Hermes optimization).
+ * We subscribe to keyboardWillShow/Hide, store the keyboard height in state, and
+ * subtract the bottom tabBar height (since this screen sits inside a tabs
+ * navigator) before applying paddingBottom to the inputPill wrapper.
+ * LayoutAnimation.Presets.easeInEaseOut animates the inputPill's lift in sync
+ * with the keyboard. (LayoutAnimation.Presets.keyboard exists at runtime but
+ * isn't in RN's TypeScript definitions.)
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -30,10 +33,9 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
-  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { fetch as expoFetch } from "expo/fetch";
 import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
@@ -101,11 +103,34 @@ const RULES_SECTIONS: { title: string; body: string }[] = [
 
 export default function AskCoachScreen() {
   const { data, theme } = useApp();
-  const headerHeight = useHeaderHeight();
+  const tabBarHeight = useBottomTabBarHeight();
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, (e) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Subtract tabBarHeight: keyboard height is measured from screen bottom, but
+  // our container's bottom is at the top of the tab bar — without this subtraction
+  // the inputPill would float (keyboardHeight - tabBarHeight) too high.
+  const keyboardLift = Math.max(0, keyboardHeight - tabBarHeight);
 
   const buildContext = (): AskCoachContext => {
     const tmPct = data.settings.tmPercentage;
@@ -220,11 +245,7 @@ export default function AskCoachScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.segWrap}>
           <Segmented
@@ -247,11 +268,12 @@ export default function AskCoachScreen() {
           setInput={setInput}
           sendMessage={sendMessage}
           scrollRef={scrollRef}
+          keyboardLift={keyboardLift}
         />
       ) : (
         <RulesView theme={theme} />
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -262,6 +284,7 @@ function ChatView({
   setInput,
   sendMessage,
   scrollRef,
+  keyboardLift,
 }: {
   theme: any;
   messages: Message[];
@@ -269,6 +292,7 @@ function ChatView({
   setInput: (v: string) => void;
   sendMessage: (text: string) => void;
   scrollRef: React.RefObject<ScrollView | null>;
+  keyboardLift: number;
 }) {
   const canSend = input.trim().length > 0;
   return (
@@ -310,30 +334,32 @@ function ChatView({
         Informational only. Consult a qualified coach or medical professional for personalized advice.
       </Text>
 
-      <View style={[styles.inputPill, { backgroundColor: PILL_BG }]}>
-        <TextInput
-          style={[styles.input, { color: theme.text }]}
-          placeholder="Ask Coach anything about 5/3/1..."
-          placeholderTextColor={theme.textSecondary}
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={() => sendMessage(input)}
-          returnKeyType="default"
-          multiline={false}
-          blurOnSubmit={false}
-          autoCorrect={false}
-          autoCapitalize="sentences"
-        />
-        <TouchableOpacity
-          onPress={() => sendMessage(input)}
-          disabled={!canSend}
-          hitSlop={8}
-          style={[styles.sendBtn, { backgroundColor: theme.accent, opacity: canSend ? 1 : 0.4 }]}
-          accessibilityLabel="Send message"
-          accessibilityRole="button"
-        >
-          <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
+      <View style={{ paddingBottom: keyboardLift }}>
+        <View style={[styles.inputPill, { backgroundColor: PILL_BG }]}>
+          <TextInput
+            style={[styles.input, { color: theme.text }]}
+            placeholder="Ask Coach anything about 5/3/1..."
+            placeholderTextColor={theme.textSecondary}
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={() => sendMessage(input)}
+            returnKeyType="default"
+            multiline={false}
+            blurOnSubmit={false}
+            autoCorrect={false}
+            autoCapitalize="sentences"
+          />
+          <TouchableOpacity
+            onPress={() => sendMessage(input)}
+            disabled={!canSend}
+            hitSlop={8}
+            style={[styles.sendBtn, { backgroundColor: theme.accent, opacity: canSend ? 1 : 0.4 }]}
+            accessibilityLabel="Send message"
+            accessibilityRole="button"
+          >
+            <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
     </>
   );
