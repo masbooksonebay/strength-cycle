@@ -1,5 +1,6 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, KeyboardAvoidingView, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as StoreReview from "expo-store-review";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
@@ -29,9 +30,11 @@ function Section({ title, children, theme }: { title: string; children: React.Re
   );
 }
 
-function Row({ label, right, theme, last, info }: { label: string; right: React.ReactNode; theme: any; last?: boolean; info?: string }) {
+function Row({ label, right, theme, last, info, onPress }: { label: string; right: React.ReactNode; theme: any; last?: boolean; info?: string; onPress?: () => void }) {
+  const Wrap: any = onPress ? TouchableOpacity : View;
+  const wrapProps = onPress ? { onPress, activeOpacity: 0.6 } : {};
   return (
-    <View style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
+    <Wrap {...wrapProps} style={[styles.row, !last && { borderBottomWidth: 1, borderBottomColor: theme.border }]}>
       <View style={styles.rowLeft}>
         {info && (
           <TouchableOpacity onPress={() => Alert.alert("Feature Info", info)} style={styles.infoBtn}>
@@ -41,7 +44,7 @@ function Row({ label, right, theme, last, info }: { label: string; right: React.
         <Text style={[styles.rowLabel, { color: theme.text }]}>{label}</Text>
       </View>
       {right}
-    </View>
+    </Wrap>
   );
 }
 
@@ -129,6 +132,20 @@ export default function SettingsScreen() {
 
   const startEditRM = (lift: string, current: number) => { setEditingRM(lift); setRmValue(String(current)); };
   const saveRM = () => { if (editingRM && rmValue) { const v = parseFloat(rmValue); if (v > 0) updateLift(editingRM, { oneRepMax: v }); } setEditingRM(null); };
+
+  const handleSendFeedback = () => {
+    const email = "strengthcyclestudios@gmail.com";
+    const subject = encodeURIComponent("Strength Cycle Feedback");
+    Linking.openURL(`mailto:${email}?subject=${subject}`);
+  };
+
+  const handleRateApp = async () => {
+    try {
+      if (await StoreReview.hasAction()) {
+        StoreReview.requestReview();
+      }
+    } catch {}
+  };
 
   const onUnitsChange = (next: WeightUnit) => {
     if (next === s.units) return;
@@ -289,8 +306,8 @@ export default function SettingsScreen() {
       )}
 
       <Section title="Feedback" theme={theme}>
-        <Row label="Send Feedback" theme={theme} right={<Ionicons name="mail-outline" size={18} color={theme.textSecondary} />} />
-        <Row label="Rate the App" theme={theme} last right={<Ionicons name="star-outline" size={18} color={theme.textSecondary} />} />
+        <Row label="Send Feedback" theme={theme} onPress={handleSendFeedback} right={<Ionicons name="mail-outline" size={18} color={theme.textSecondary} />} />
+        <Row label="Rate the App" theme={theme} last onPress={handleRateApp} right={<Ionicons name="star-outline" size={18} color={theme.textSecondary} />} />
       </Section>
 
       <Section title="Data" theme={theme}>

@@ -35,7 +35,6 @@ export default function TabLayout() {
         name="ask-coach"
         options={{
           title: "Ask Coach",
-          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? "chatbubble" : "chatbubble-outline"} size={size} color={color} />
           ),

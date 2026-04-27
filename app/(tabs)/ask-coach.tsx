@@ -9,10 +9,12 @@
  *        from screen edge           circle send
  *   ──── keyboard top (≈8pt gap above keyboard) ────
  *
- * keyboardVerticalOffset=0 on iOS: the screen sits inside the bottom-tabs
- * navigator which already reserves tabBarHeight at the bottom, so KAV sees
- * distanceFromBottom = tabBarHeight and naturally aligns content to keyboard
- * top without extra offset.
+ * keyboardVerticalOffset on iOS = nav header height (via useHeaderHeight).
+ * The tabs navigator renders an "Ask Coach" header for this screen (per the
+ * design rule that interior screens show their feature name), so KAV must
+ * compensate for it — without the offset, the input pill renders behind the
+ * keyboard on tall-header devices (e.g., iPhone Pro Max with Dynamic Island).
+ * The bottom tabBar inset is already covered by KAV's distanceFromBottom.
  */
 
 import { useRef, useState } from "react";
@@ -31,6 +33,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { fetch as expoFetch } from "expo/fetch";
 import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
@@ -98,6 +101,7 @@ const RULES_SECTIONS: { title: string; body: string }[] = [
 
 export default function AskCoachScreen() {
   const { data, theme } = useApp();
+  const headerHeight = useHeaderHeight();
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -219,7 +223,7 @@ export default function AskCoachScreen() {
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.segWrap}>

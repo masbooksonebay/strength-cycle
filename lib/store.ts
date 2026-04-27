@@ -182,12 +182,12 @@ export async function importData(json: string): Promise<AppData> {
   return data;
 }
 
-export function getLastReps(workouts: WorkoutLog[], exercise: string, week: string, percentage: number): number | null {
+export function getLastReps(workouts: WorkoutLog[], exercise: string, week: string, percentage: number): { reps: number; weight: number } | null {
   for (let i = workouts.length - 1; i >= 0; i--) {
     const w = workouts[i];
     if (w.exercise !== exercise || w.week !== week) continue;
     for (const s of w.sets) {
-      if (s.percentage === percentage && s.actualReps > 0) return s.actualReps;
+      if (s.percentage === percentage && s.actualReps > 0) return { reps: s.actualReps, weight: s.weight };
     }
   }
   return null;

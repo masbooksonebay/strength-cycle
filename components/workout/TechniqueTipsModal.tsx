@@ -32,7 +32,7 @@ export function TechniqueTipsModal({ visible, liftName, onClose }: Props) {
         <ScrollView contentContainerStyle={styles.content}>
           {!content ? (
             <Text style={[styles.empty, { color: theme.textSecondary }]}>
-              No technique tips available for {liftName}.
+              Ask Coach for technique tips on {liftName}.
             </Text>
           ) : (
             <>
