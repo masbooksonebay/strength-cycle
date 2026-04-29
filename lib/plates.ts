@@ -1,3 +1,5 @@
+import { getLocales } from "expo-localization";
+
 export type WeightUnit = "lb" | "kg";
 export type RoundingMode = "nearest" | "down" | "up";
 
@@ -29,6 +31,17 @@ export const PRECISION_OPTIONS_KG = [0.25, 0.5, 1.0, 1.25, 2.5, 5.0];
 
 export const DEFAULT_PRECISION: Record<WeightUnit, number> = { lb: 2.5, kg: 1.25 };
 export const DEFAULT_BAR: Record<WeightUnit, number> = { lb: 45, kg: 20 };
+
+const IMPERIAL_REGIONS = new Set(["US", "LR", "MM"]);
+
+export function localeDefaultUnit(): WeightUnit {
+  try {
+    const region = getLocales()[0]?.regionCode ?? null;
+    return region && IMPERIAL_REGIONS.has(region) ? "lb" : "kg";
+  } catch {
+    return "lb";
+  }
+}
 
 export function defaultPlatesFor(unit: WeightUnit): number[] {
   return unit === "lb" ? [...DEFAULT_PLATES_LB] : [...DEFAULT_PLATES_KG];

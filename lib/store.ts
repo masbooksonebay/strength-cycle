@@ -5,6 +5,7 @@ import {
   DEFAULT_BAR,
   DEFAULT_PRECISION,
   defaultPlatesFor,
+  localeDefaultUnit,
 } from "./plates";
 
 export interface LiftData {
@@ -149,6 +150,20 @@ function migrateWorkouts(parsed: any): WorkoutLog[] {
   return out;
 }
 
+function firstLaunchDefaults(): AppData {
+  const unit = localeDefaultUnit();
+  return {
+    ...DEFAULT_DATA,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      units: unit,
+      precision: DEFAULT_PRECISION[unit],
+      barWeight: DEFAULT_BAR[unit],
+      availablePlates: defaultPlatesFor(unit),
+    },
+  };
+}
+
 export async function loadData(): Promise<AppData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -164,7 +179,7 @@ export async function loadData(): Promise<AppData> {
       };
     }
   } catch {}
-  return DEFAULT_DATA;
+  return firstLaunchDefaults();
 }
 
 export async function saveData(data: AppData): Promise<void> {
