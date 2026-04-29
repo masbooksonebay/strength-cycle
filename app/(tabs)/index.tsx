@@ -298,9 +298,7 @@ export default function WorkoutScreen() {
           <Text style={styles.logBtnText}>Add to Log</Text>
         </TouchableOpacity>
 
-        <View style={{ marginTop: spacing.sm }}>
-          <TimerStartButton />
-        </View>
+        <TimerStartButton />
 
         <View style={{ height: timer.visible ? 72 : 8 }} />
       </ScrollView>
@@ -576,9 +574,9 @@ const styles = StyleSheet.create({
   setBar: { position: "absolute", bottom: 0, left: 0, right: 0, height: 3 },
   setBarFill: { height: 3 },
   removeBtn: { position: "absolute", top: 6, right: 6 },
-  addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, paddingVertical: 10, marginBottom: spacing.sm },
+  addSetBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderStyle: "dashed", borderRadius: borderRadius.md, height: 56, marginBottom: spacing.sm + 4 },
   addSetText: { fontSize: 13, fontWeight: "600" },
-  amrapCard: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginTop: spacing.md, borderWidth: 1 },
+  amrapCard: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderRadius: borderRadius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.sm + 4, borderWidth: 1 },
   amrapSpacer: { width: 24 },
   amrapCenter: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   amrapLabel: { fontSize: 14, fontWeight: "700", letterSpacing: 1.5, textAlign: "left" },
@@ -590,7 +588,7 @@ const styles = StyleSheet.create({
   repCounter: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   repBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   repCount: { fontSize: 20, fontWeight: "800", minWidth: 36, textAlign: "center" },
-  logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, paddingVertical: 14, marginTop: spacing.lg },
+  logBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderRadius: borderRadius.sm, height: 56, marginBottom: spacing.sm + 4 },
   logBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   modalContainer: { flex: 1 },
   modalTitle: { fontSize: 20, fontWeight: "800", flex: 1 },

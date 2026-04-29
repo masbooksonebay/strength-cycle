@@ -118,6 +118,6 @@ const styles = StyleSheet.create({
   adjustText: { fontSize: 15, fontWeight: "700" },
   controlRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.xs },
   controlBtn: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  startBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderRadius: borderRadius.sm, paddingVertical: 11, width: "100%" },
+  startBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1.5, borderRadius: borderRadius.sm, height: 56, width: "100%" },
   startBtnText: { fontSize: 14, fontWeight: "800", letterSpacing: 0.3 },
 });
