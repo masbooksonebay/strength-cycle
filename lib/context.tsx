@@ -11,6 +11,12 @@ import {
 } from "./plates";
 import { TimerProvider } from "./timer";
 import { SHOW_IAP_UI } from "./config";
+import {
+  ProgramId,
+  ProgramsState,
+  Wendler531State,
+  TexasMethodState,
+} from "./programs";
 
 // When IAP UI is hidden, all gated flags behave as unlocked.
 function applyIapOverrides(data: AppData): AppData {
@@ -36,6 +42,10 @@ interface AppCtx {
   updateWorkout: (id: string, updates: Partial<WorkoutLog>) => void;
   deleteWorkout: (id: string) => void;
   setCurrentCycle: (n: number) => void;
+  setActiveProgram: (id: ProgramId) => void;
+  updateWendler531State: (updates: Partial<Wendler531State>) => void;
+  updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
+  setOnboardingComplete: (complete: boolean) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
   removeExtraSet: (liftName: string, index: number) => void;
   changeUnits: (next: WeightUnit) => void;
@@ -54,6 +64,10 @@ const Ctx = createContext<AppCtx>({
   updateWorkout: () => {},
   deleteWorkout: () => {},
   setCurrentCycle: () => {},
+  setActiveProgram: () => {},
+  updateWendler531State: () => {},
+  updateTexasMethodState: () => {},
+  setOnboardingComplete: () => {},
   addExtraSet: () => {},
   removeExtraSet: () => {},
   changeUnits: () => {},
@@ -94,7 +108,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [data, persist]);
 
   const addWorkout = useCallback((workout: WorkoutLog) => {
-    persist({ ...data, workouts: [...data.workouts, workout] });
+    const tagged: WorkoutLog = { ...workout, program: workout.program ?? data.activeProgram };
+    persist({ ...data, workouts: [...data.workouts, tagged] });
   }, [data, persist]);
 
   const updateWorkout = useCallback((id: string, updates: Partial<WorkoutLog>) => {
@@ -105,8 +120,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist({ ...data, workouts: data.workouts.filter((w) => w.id !== id) });
   }, [data, persist]);
 
+  // Routes the legacy 5/3/1 currentCycle setter into the new programs.wendler531 slice.
   const setCurrentCycle = useCallback((n: number) => {
-    persist({ ...data, currentCycle: n });
+    persist({
+      ...data,
+      programs: {
+        ...data.programs,
+        wendler531: { ...data.programs.wendler531, currentCycle: n },
+      },
+    });
+  }, [data, persist]);
+
+  const setActiveProgram = useCallback((id: ProgramId) => {
+    persist({ ...data, activeProgram: id });
+  }, [data, persist]);
+
+  const updateWendler531State = useCallback((updates: Partial<Wendler531State>) => {
+    persist({
+      ...data,
+      programs: {
+        ...data.programs,
+        wendler531: { ...data.programs.wendler531, ...updates },
+      },
+    });
+  }, [data, persist]);
+
+  const updateTexasMethodState = useCallback((updates: Partial<TexasMethodState>) => {
+    persist({
+      ...data,
+      programs: {
+        ...data.programs,
+        texasMethod: { ...data.programs.texasMethod, ...updates },
+      },
+    });
+  }, [data, persist]);
+
+  const setOnboardingComplete = useCallback((complete: boolean) => {
+    persist({ ...data, onboardingComplete: complete });
   }, [data, persist]);
 
   const addExtraSet = useCallback((liftName: string, set: ExtraSet) => {
@@ -140,6 +190,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })),
     }));
 
+    const tm = data.programs.texasMethod;
+    const convertWeightMap = (m: Record<string, number>): Record<string, number> =>
+      Object.fromEntries(Object.entries(m).map(([k, v]) => [k, convertWeight(v, from, next, nextPrecision, rounding)]));
+    const nextTm: TexasMethodState = {
+      ...tm,
+      fiveRMs: convertWeightMap(tm.fiveRMs),
+      intensityWeights: convertWeightMap(tm.intensityWeights),
+      bodyweight: tm.bodyweight ? convertWeight(tm.bodyweight, from, next, nextPrecision, rounding) : 0,
+    };
+
     const currentPrecision = data.settings.precision;
     const validForNext = precisionOptionsFor(next).includes(currentPrecision);
 
@@ -147,6 +207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...data,
       lifts,
       workouts,
+      programs: { ...data.programs, texasMethod: nextTm },
       settings: {
         ...data.settings,
         units: next,
@@ -174,7 +235,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   if (!loaded) return null;
 
   return (
-    <Ctx.Provider value={{ data, theme, updateSettings, updateLift, addLift, addWorkout, updateWorkout, deleteWorkout, setCurrentCycle, addExtraSet, removeExtraSet, changeUnits, replaceSampleWorkouts, clearSampleWorkouts, reload }}>
+    <Ctx.Provider value={{
+      data,
+      theme,
+      updateSettings,
+      updateLift,
+      addLift,
+      addWorkout,
+      updateWorkout,
+      deleteWorkout,
+      setCurrentCycle,
+      setActiveProgram,
+      updateWendler531State,
+      updateTexasMethodState,
+      setOnboardingComplete,
+      addExtraSet,
+      removeExtraSet,
+      changeUnits,
+      replaceSampleWorkouts,
+      clearSampleWorkouts,
+      reload,
+    }}>
       <TimerProvider defaultDuration={data.settings.restTimerDuration}>
         {children}
       </TimerProvider>

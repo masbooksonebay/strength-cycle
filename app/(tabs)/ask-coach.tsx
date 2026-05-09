@@ -66,6 +66,7 @@ interface AskCoachContext {
   cyclePhase: string;
   recentAmraps: RecentAmrap[];
   unit: string;
+  program: string;
 }
 
 const RULES_SECTIONS: { title: string; body: string }[] = [
@@ -147,7 +148,7 @@ export default function AskCoachScreen() {
     });
     const cyclePhase = amrapWorkouts[0]?.week ?? "5/5/5";
     const unit = data.settings.units === "lb" ? "lbs" : "kg";
-    return { currentTMs, cycleNumber: data.currentCycle, cyclePhase, recentAmraps, unit };
+    return { currentTMs, cycleNumber: data.programs.wendler531.currentCycle, cyclePhase, recentAmraps, unit, program: data.activeProgram };
   };
 
   const sendMessage = async (text: string) => {

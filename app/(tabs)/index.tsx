@@ -116,7 +116,7 @@ export default function WorkoutScreen() {
       date: new Date().toISOString(),
       exercise: lift.name,
       week,
-      cycle: data.currentCycle,
+      cycle: data.programs.wendler531.currentCycle,
       sets,
       notes: logNotes,
     };

@@ -114,6 +114,7 @@ export function buildSampleWorkouts(
           exercise: lift,
           week: wk.week,
           cycle: c,
+          program: "wendler531",
           sets: [amrapSet],
           notes: "",
           _isSampleData: true,

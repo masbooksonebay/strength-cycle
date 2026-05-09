@@ -7,6 +7,14 @@ import {
   defaultPlatesFor,
   localeDefaultUnit,
 } from "./plates";
+import {
+  ProgramId,
+  ProgramsState,
+  DEFAULT_PROGRAMS_STATE,
+  isProgramId,
+  Wendler531State,
+  TexasMethodState,
+} from "./programs";
 
 export interface LiftData {
   name: string;
@@ -38,6 +46,7 @@ export interface WorkoutLog {
   cycle: number;
   sets: SetLog[];
   notes: string;
+  program?: ProgramId;
   _isSampleData?: boolean;
 }
 
@@ -59,11 +68,13 @@ export interface Settings {
 }
 
 export interface AppData {
+  activeProgram: ProgramId;
+  programs: ProgramsState;
   lifts: LiftData[];
   workouts: WorkoutLog[];
   settings: Settings;
-  currentCycle: number;
   extraSets: Record<string, ExtraSet[]>;
+  onboardingComplete: boolean;
 }
 
 const STORAGE_KEY = "strength_cycle_data";
@@ -93,11 +104,13 @@ export const DEFAULT_LIFTS: LiftData[] = [
 ];
 
 export const DEFAULT_DATA: AppData = {
+  activeProgram: "wendler531",
+  programs: DEFAULT_PROGRAMS_STATE,
   lifts: DEFAULT_LIFTS,
   workouts: [],
   settings: DEFAULT_SETTINGS,
-  currentCycle: 1,
   extraSets: {},
+  onboardingComplete: false,
 };
 
 function migrateSettings(raw: any): Settings {
@@ -114,7 +127,12 @@ function migrateSettings(raw: any): Settings {
 }
 
 function migrateWorkouts(parsed: any): WorkoutLog[] {
-  if (Array.isArray(parsed.workouts)) return parsed.workouts;
+  if (Array.isArray(parsed.workouts)) {
+    return parsed.workouts.map((w: any) => ({
+      ...w,
+      program: isProgramId(w.program) ? w.program : "wendler531",
+    }));
+  }
   if (!Array.isArray(parsed.log) || parsed.log.length === 0) return [];
   const currentCycle = typeof parsed.currentCycle === "number" ? parsed.currentCycle : 1;
   const groups = new Map<string, any[]>();
@@ -135,6 +153,7 @@ function migrateWorkouts(parsed: any): WorkoutLog[] {
       exercise: first.exercise,
       week: first.week,
       cycle: currentCycle,
+      program: "wendler531",
       sets: group.map((e) => ({
         percentage: e.percentage,
         weight: e.weight,
@@ -148,6 +167,39 @@ function migrateWorkouts(parsed: any): WorkoutLog[] {
   }
   out.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   return out;
+}
+
+function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: ProgramsState } {
+  const activeProgram: ProgramId = isProgramId(parsed.activeProgram) ? parsed.activeProgram : "wendler531";
+
+  const wendler531State: Wendler531State = {
+    currentCycle:
+      typeof parsed.programs?.wendler531?.currentCycle === "number"
+        ? parsed.programs.wendler531.currentCycle
+        : typeof parsed.currentCycle === "number"
+          ? parsed.currentCycle
+          : 1,
+  };
+
+  const tmRaw = parsed.programs?.texasMethod ?? {};
+  const texasMethodState: TexasMethodState = {
+    weekIndex: typeof tmRaw.weekIndex === "number" ? tmRaw.weekIndex : 1,
+    fiveRMs: typeof tmRaw.fiveRMs === "object" && tmRaw.fiveRMs !== null ? tmRaw.fiveRMs : {},
+    intensityWeights:
+      typeof tmRaw.intensityWeights === "object" && tmRaw.intensityWeights !== null ? tmRaw.intensityWeights : {},
+    stallCount: typeof tmRaw.stallCount === "object" && tmRaw.stallCount !== null ? tmRaw.stallCount : {},
+    pendingStallChoice:
+      tmRaw.pendingStallChoice && typeof tmRaw.pendingStallChoice === "object"
+        ? tmRaw.pendingStallChoice
+        : null,
+    powerCleanEnabled: typeof tmRaw.powerCleanEnabled === "boolean" ? tmRaw.powerCleanEnabled : false,
+    bodyweight: typeof tmRaw.bodyweight === "number" ? tmRaw.bodyweight : 0,
+  };
+
+  return {
+    activeProgram,
+    programs: { wendler531: wendler531State, texasMethod: texasMethodState },
+  };
 }
 
 function firstLaunchDefaults(): AppData {
@@ -170,11 +222,20 @@ export async function loadData(): Promise<AppData> {
     if (raw) {
       const parsed = JSON.parse(raw);
       const workouts = migrateWorkouts(parsed);
-      const { log: _legacyLog, ...rest } = parsed;
+      const { activeProgram, programs } = migratePrograms(parsed);
+      const onboardingComplete =
+        typeof parsed.onboardingComplete === "boolean"
+          ? parsed.onboardingComplete
+          : workouts.length > 0 || (Array.isArray(parsed.log) && parsed.log.length > 0);
+
+      const { log: _legacyLog, currentCycle: _legacyCycle, ...rest } = parsed;
       return {
         ...DEFAULT_DATA,
         ...rest,
+        activeProgram,
+        programs,
         workouts,
+        onboardingComplete,
         settings: migrateSettings(parsed.settings),
       };
     }
