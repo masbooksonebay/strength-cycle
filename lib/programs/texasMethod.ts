@@ -268,3 +268,101 @@ export function applyStallResponse(args: {
 
 // Volume Day cut multiplier when stall response was "cut10".
 export const VOLUME_CUT_MULTIPLIER = 0.9;
+
+// Seed initial Texas Method state from onboarding inputs. Accepts either a 5RM
+// directly or a 1RM (in which case 5RM is estimated via reverse Epley at 0.85).
+//
+// `liftMaxes` keys are lift names ("Squat", "Bench Press", "Deadlift",
+// "Overhead Press"). Each entry is { value, kind } where kind tells us whether
+// the value is a true 5RM the user knows or a 1RM we should derive from.
+export interface OnboardingMaxInput {
+  value: number;
+  kind: "fiveRM" | "oneRM";
+}
+
+export function seedTexasMethodState(args: {
+  liftMaxes: Record<string, OnboardingMaxInput>;
+  powerCleanEnabled?: boolean;
+  bodyweight?: number;
+}): TexasMethodState {
+  const { liftMaxes, powerCleanEnabled = false, bodyweight = 0 } = args;
+  const fiveRMs: Record<string, number> = {};
+  const intensityWeights: Record<string, number> = {};
+  const stallCount: Record<string, number> = {};
+
+  for (const [lift, input] of Object.entries(liftMaxes)) {
+    const fiveRM = input.kind === "oneRM" ? fiveRMFromOneRM(input.value) : Math.round(input.value);
+    fiveRMs[lift] = fiveRM;
+    intensityWeights[lift] = fiveRM;
+    stallCount[lift] = 0;
+  }
+
+  return {
+    weekIndex: 1,
+    fiveRMs,
+    intensityWeights,
+    stallCount,
+    pendingStallChoice: null,
+    powerCleanEnabled,
+    bodyweight,
+  };
+}
+
+// Advance to the next training week. Bench/OHP swap as the main upper-body
+// lift; squat/deadlift/etc. don't change role with weekIndex parity.
+export function advanceWeekIndex(state: TexasMethodState): TexasMethodState {
+  return { ...state, weekIndex: state.weekIndex + 1 };
+}
+
+// Deadlift on Volume Day is supplementary and progresses every week
+// regardless of upper-body alternation. Call this after a successful Volume
+// Day deadlift (5 reps clean).
+export function applyDeadliftVolumeProgression(args: {
+  state: TexasMethodState;
+  reps: number;
+  units: WeightUnit;
+}): TexasMethodState {
+  const { state, reps, units } = args;
+  if (reps < 5) return state;
+  const increment = deadliftWeeklyIncrement(units);
+  const current = state.fiveRMs.Deadlift ?? 0;
+  return {
+    ...state,
+    fiveRMs: { ...state.fiveRMs, Deadlift: current + increment },
+    intensityWeights: { ...state.intensityWeights, Deadlift: current + increment },
+  };
+}
+
+// Helper for sample-data and tests: produce the day prescription for a given
+// lift, day, and current state. Returns an empty array when that lift is not
+// trained on that day.
+export function getDaySets(args: {
+  day: TmDay;
+  lift: TmLift;
+  state: TexasMethodState;
+  precision: number;
+  rounding: RoundingMode;
+}): ProgramSet[] {
+  const { day, lift, state, precision, rounding } = args;
+  const fiveRM = state.fiveRMs[lift] ?? 0;
+
+  if (day === "volume") {
+    return getVolumeDaySets({ lift, weekIndex: state.weekIndex, fiveRM, precision, rounding });
+  }
+  if (day === "recovery") {
+    const main = mainUpperLiftForWeek(state.weekIndex);
+    const mainFiveRM = state.fiveRMs[main] ?? 0;
+    const volumeDayWeight = roundToPrecision(mainFiveRM * 0.9, precision, rounding);
+    return getRecoveryDaySets({
+      lift,
+      weekIndex: state.weekIndex,
+      fiveRM,
+      volumeDayWeight,
+      precision,
+      rounding,
+    });
+  }
+  // intensity
+  const intensityWeight = state.intensityWeights[lift] ?? state.fiveRMs[lift] ?? 0;
+  return getIntensityDaySets({ lift, weekIndex: state.weekIndex, intensityWeight, precision, rounding });
+}
