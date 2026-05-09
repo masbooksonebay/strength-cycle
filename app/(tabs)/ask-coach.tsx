@@ -99,9 +99,9 @@ const WENDLER_531_RULES: RulesSection[] = [
       "BBB (Boring But Big): 5x10 at 50-60% TM, same lift as main\nFSL (First Set Last): Repeat the first working set weight for 3-5 sets of 5\nTriumvirate: 2 assistance lifts per main lift session\nBoring But Strong: Heavier BBB variant\nJokers: Add 5-10% above your top set after completing prescribed reps\n5's PRO: Just do prescribed reps, no AMRAP — for mass phases",
   },
   {
-    title: "WENDLER'S BOOKS",
+    title: "5/3/1 EDITIONS",
     body:
-      "Jim Wendler has published multiple editions of 5/3/1. Most modern lifters reference:\n- 5/3/1 Forever (2017) — the most comprehensive and current\n- 5/3/1: 2nd Edition (updated)\n- 5/3/1: Beyond (2012)\n- 5/3/1 (2008, original)\n\nForever is the recommended starting point for new readers.",
+      "Multiple editions of 5/3/1 have been published. Most modern lifters reference:\n- 5/3/1 Forever (2017) — the most comprehensive and current\n- 5/3/1: 2nd Edition (updated)\n- 5/3/1: Beyond (2012)\n- 5/3/1 (2008, original)\n\nForever is the recommended starting point for new readers.",
   },
 ];
 

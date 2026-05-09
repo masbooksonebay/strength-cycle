@@ -20,6 +20,7 @@ import {
 } from "../../lib/plates";
 import { SHOW_IAP_UI } from "../../lib/config";
 import { ProgramGuide } from "../../components/ProgramGuide";
+import { TexasMethodGuide } from "../../components/TexasMethodGuide";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 import { SheetBackdrop } from "../../components/common/SheetBackdrop";
 
@@ -295,7 +296,7 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
           </View>
         } />
-        <Row label="5/3/1 Program Guide" theme={theme} last onPress={() => setShowGuide(true)} right={
+        <Row label={`${activeProgramName} Guide`} theme={theme} last onPress={() => setShowGuide(true)} right={
           <View style={styles.tapRow}>
             <Ionicons name="book-outline" size={18} color={theme.textSecondary} />
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
@@ -406,15 +407,15 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* 5/3/1 Guide Modal */}
+      {/* Program Guide Modal — content switches based on activeProgram */}
       <Modal visible={showGuide} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.guideContainer, { backgroundColor: theme.background }]}>
           <View style={styles.guideHeader}>
-            <Text style={[styles.guideTitle, { color: theme.text }]}>5/3/1 Program Guide</Text>
+            <Text style={[styles.guideTitle, { color: theme.text }]}>{activeProgramName} Guide</Text>
             <TouchableOpacity onPress={() => setShowGuide(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.guideContent}>
-            <ProgramGuide theme={theme} />
+            {data.activeProgram === "texasMethod" ? <TexasMethodGuide theme={theme} /> : <ProgramGuide theme={theme} />}
           </ScrollView>
         </View>
       </Modal>

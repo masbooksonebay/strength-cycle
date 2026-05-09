@@ -34,9 +34,6 @@ export default function ProgramSelect() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>Choose your program</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          You can switch later in Settings.
-        </Text>
 
         {PROGRAM_LIST.map((id) => {
           const meta = PROGRAMS[id];
@@ -67,6 +64,10 @@ export default function ProgramSelect() {
             </TouchableOpacity>
           );
         })}
+
+        <Text style={[styles.hint, { color: theme.textSecondary }]}>
+          You can change your program anytime in Settings.
+        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -89,8 +90,9 @@ const styles = StyleSheet.create({
   brandText: { fontSize: 22, fontWeight: "900", letterSpacing: 4 },
   brandLine: { width: "100%", height: 2 },
   content: { padding: spacing.lg, paddingBottom: spacing.xl },
-  title: { fontSize: 26, fontWeight: "900", marginTop: spacing.md, marginBottom: 6 },
+  title: { fontSize: 26, fontWeight: "900", marginTop: spacing.md, marginBottom: spacing.lg },
   subtitle: { fontSize: 14, marginBottom: spacing.lg },
+  hint: { fontSize: 14, textAlign: "center", marginTop: spacing.sm },
   card: {
     borderRadius: borderRadius.md,
     padding: spacing.md,

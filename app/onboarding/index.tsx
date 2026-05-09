@@ -17,7 +17,7 @@ export default function OnboardingWelcome() {
 
       <View style={styles.content}>
         <View style={styles.iconWrap}>
-          <Ionicons name="flame" size={56} color={theme.accent} />
+          <Ionicons name="barbell" size={56} color={theme.accent} />
         </View>
         <Text style={[styles.title, { color: theme.text }]}>Welcome</Text>
         <Text style={[styles.copy, { color: theme.textSecondary }]}>

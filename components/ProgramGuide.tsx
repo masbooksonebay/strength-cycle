@@ -35,7 +35,7 @@ const GLOSSARY: { term: string; def: string }[] = [
   { term: "Cycle", def: "One complete 4-week block (Weeks 1–4)." },
   { term: "Deload", def: "A lighter week at the end of each 4-week cycle for recovery." },
   { term: "e1RM (Estimated 1RM)", def: "A calculated estimate of your 1RM based on weight and reps, using the Epley formula: weight × (1 + reps/30)." },
-  { term: "Jokers", def: "Optional heavier sets after the AMRAP set when feeling strong. Typically +5% or +10% beyond top weight for 1–3 reps. Use sparingly; Wendler's 5/3/1 Forever explains when they're appropriate." },
+  { term: "Jokers", def: "Optional heavier sets after the AMRAP set when feeling strong. Typically +5% or +10% beyond top weight for 1–3 reps. Use sparingly; the 5/3/1 Forever book explains when they're appropriate." },
   { term: "PR (Personal Record)", def: "Any best-ever performance for a given lift. In 5/3/1, most PRs come from AMRAP sets." },
   { term: "Rep PR", def: "Beating your previous best rep count on the AMRAP set at the same working weight. Tracked per lift per cycle." },
   { term: "TM (Training Max)", def: "The weight your percentages are based on. Default: 90% of your 1RM." },
@@ -46,8 +46,7 @@ const GLOSSARY: { term: string; def: string }[] = [
 ];
 
 const LEARN_MORE_LINKS: { label: string; desc: string; url: string }[] = [
-  { label: "JimWendler.com", desc: "Official 5/3/1 site and books", url: "https://www.jimwendler.com/" },
-  { label: "T-Nation", desc: "'How to Build Pure Strength' (original article)", url: "https://t-nation.com/t/5-3-1-how-to-build-pure-strength/281694" },
+  { label: "T-Nation", desc: "'How to Build Pure Strength' (original 5/3/1 article)", url: "https://t-nation.com/t/5-3-1-how-to-build-pure-strength/281694" },
   { label: "Garage Gym Reviews", desc: "5/3/1 program breakdown with examples", url: "https://www.garagegymreviews.com/5-3-1-workout" },
 ];
 
@@ -107,7 +106,7 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
               <View style={[styles.sectionBody, { borderTopColor: theme.border }]}>
                 {key === "overview" && (
                   <Text style={[styles.para, body]}>
-                    5/3/1 is a strength training program created by Jim Wendler. It is built around four main barbell lifts and uses percentage-based loading to drive slow, consistent progress over time. The core philosophy: start lighter than you think you need to, progress slowly, and focus on long-term strength gains.
+                    5/3/1 is a strength training methodology built around four main barbell lifts. It uses percentage-based loading to drive slow, consistent progress over time. The core philosophy: start lighter than you think you need to, progress slowly, and focus on long-term strength gains.
                   </Text>
                 )}
 
@@ -214,6 +213,9 @@ export function ProgramGuide({ theme }: { theme: Theme }) {
                     ))}
                     <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
                       Educational content only. Consult a qualified coach for personalized form feedback.
+                    </Text>
+                    <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
+                      Strength Cycle is an independent training tool. 5/3/1 is an established programming methodology. Not affiliated with any program creator referenced. Use of this app is for personal training tracking purposes only.
                     </Text>
                   </View>
                 )}

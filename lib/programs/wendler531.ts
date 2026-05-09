@@ -7,11 +7,11 @@ import { ProgramMetadata, ProgramSet } from "./types";
 
 export const WENDLER531_METADATA: ProgramMetadata = {
   id: "wendler531",
-  displayName: "Wendler 5/3/1",
-  shortDescription: "Four-week cycles · AMRAP top sets · TM progression",
+  displayName: "5/3/1",
+  shortDescription: "Four-week cycles · AMRAP top sets · Training max progression",
   longDescription:
     "Four-week cycles, AMRAP top sets, training max progression. Best for intermediate lifters.",
-  methodology: "Jim Wendler's 5/3/1",
+  methodology: "5/3/1",
   cycleStructure: "four-week",
   primaryMetricLabel: "Training Max",
   primaryMetricAbbreviation: "TM",
