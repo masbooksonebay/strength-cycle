@@ -10,6 +10,9 @@ import {
   amrapTableForLift,
   cycleWeekSnapshot,
   uniqueCycles,
+  intensityTableForLift,
+  weeklyProgressionTable,
+  uniqueTMWeeks,
 } from "../../lib/analytics";
 import { spacing, borderRadius } from "../../constants/theme";
 
@@ -34,12 +37,19 @@ export function ProgressSubview() {
     );
   }
 
+  // Conditional rendering at this layer (rather than early-return inside each
+  // section) keeps section-internal hooks stable when activeProgram flips.
+  // Each section has its own state hooks; toggling activeProgram unmounts
+  // one section instance and mounts the other instead of changing hook count
+  // on a persistent instance.
+  const isTM = data.activeProgram === "texasMethod";
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <E1RMSection />
-      <TMSection />
-      <AmrapSection />
-      <CycleCompareSection />
+      {isTM ? null : <TMSection />}
+      {isTM ? <FiveRMProgressionSection /> : <AmrapSection />}
+      {isTM ? <WeeklyProgressionSection /> : <CycleCompareSection />}
       <View style={{ height: 80 }} />
     </ScrollView>
   );
@@ -360,6 +370,119 @@ function CycleCompareSection() {
   );
 }
 
+// ─── Texas Method sections ────────────────────────────────────────────────
+// Mounted instead of AmrapSection / CycleCompareSection when activeProgram
+// is "texasMethod". They share the LiftPicker / SectionHeader / EmptyState
+// helpers above and the same table/pill styles, so visual vocabulary stays
+// consistent across both program views.
+
+const FIVE_RM_DEFAULT_VISIBLE = 5;
+
+// TM equivalent of AmrapSection. Each row = one Intensity Day for the
+// selected lift, columns = weight / reps / e1RM.
+function FiveRMProgressionSection() {
+  const { data, theme } = useApp();
+  const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
+  const [lift, setLift] = useState<string>(data.lifts[0]?.name || "Squat");
+  const [expanded, setExpanded] = useState(false);
+  const rows = useMemo(() => intensityTableForLift(data.workouts, lift), [data.workouts, lift]);
+
+  const canTruncate = rows.length > FIVE_RM_DEFAULT_VISIBLE;
+  const visibleRows = expanded || !canTruncate ? rows : rows.slice(0, FIVE_RM_DEFAULT_VISIBLE);
+
+  const toggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded((v) => !v);
+  };
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="5RM Progression by Week" subtitle="Friday Intensity Day PR attempt each week" />
+      <LiftPicker value={lift} onChange={setLift} />
+      {rows.length === 0 ? (
+        <EmptyState message={`Complete your first Intensity Day for ${lift} to see 5RM progression.`} />
+      ) : (
+        <>
+          <View style={[styles.table, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.textSecondary, fontWeight: "800" }]}>WEEK</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>WEIGHT</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>REPS</Text>
+              <Text style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800" }]}>e1RM</Text>
+            </View>
+            {visibleRows.map((r, idx) => (
+              <View key={r.week} style={[styles.tableRow, { borderBottomColor: theme.border, borderBottomWidth: idx === visibleRows.length - 1 ? 0 : 0.5 }]}>
+                <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.text, fontWeight: "700" }]}>{r.week}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.weight} {unitLabel}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.reps}</Text>
+                <Text style={[styles.tableCell, { color: theme.text }]}>{r.e1rm}</Text>
+              </View>
+            ))}
+          </View>
+          {canTruncate && (
+            <TouchableOpacity onPress={toggle} style={styles.amrapToggle} activeOpacity={0.6}>
+              <Text style={[styles.amrapToggleText, { color: theme.accent }]}>
+                {expanded ? "Show Recent Only" : `Show All ${rows.length} Weeks`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+// TM equivalent of CycleCompareSection. Multi-lift table: rows = weeks,
+// columns = each lift's Friday Intensity Day weight. Off-week upper-body
+// cells render as "—".
+function WeeklyProgressionSection() {
+  const { data, theme } = useApp();
+  const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
+  const liftNames = useMemo(() => data.lifts.map((l) => l.name), [data.lifts]);
+  const rows = useMemo(() => weeklyProgressionTable(data.workouts, liftNames), [data.workouts, liftNames]);
+  const tmWeeks = useMemo(() => uniqueTMWeeks(data.workouts), [data.workouts]);
+
+  // Short labels for column headers — full lift names get truncated when 4
+  // lifts share the row width.
+  const shortLabel = (name: string): string => {
+    if (name === "Bench Press") return "BENCH";
+    if (name === "Overhead Press") return "OHP";
+    if (name === "Deadlift") return "DEAD";
+    return name.toUpperCase();
+  };
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="Weekly Progression" subtitle="Each row is one week's Intensity Day 5RM attempt across lifts" />
+      {tmWeeks.length === 0 ? (
+        <EmptyState message="Weekly progression appears after your first complete week." />
+      ) : (
+        <View style={[styles.table, { borderColor: theme.border, backgroundColor: theme.card }]}>
+          <View style={[styles.tableRow, styles.tableHead, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.textSecondary, fontWeight: "800" }]}>WK</Text>
+            {liftNames.map((name) => (
+              <Text key={name} style={[styles.tableCell, { color: theme.textSecondary, fontWeight: "800", fontSize: 11 }]}>{shortLabel(name)}</Text>
+            ))}
+          </View>
+          {rows.map((r, idx) => (
+            <View key={r.week} style={[styles.tableRow, { borderBottomColor: theme.border, borderBottomWidth: idx === rows.length - 1 ? 0 : 0.5 }]}>
+              <Text style={[styles.tableCell, styles.tableCellFirst, { color: theme.text, fontWeight: "700" }]}>{r.week}</Text>
+              {liftNames.map((name) => (
+                <Text key={name} style={[styles.tableCell, { color: theme.text, fontSize: 12 }]}>
+                  {r.weights[name] !== null ? `${r.weights[name]}` : "—"}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+      {tmWeeks.length > 0 && (
+        <Text style={[styles.weeklyHint, { color: theme.textSecondary }]}>Weights in {unitLabel}. Off-week upper-body lifts show "—" (no PR attempt that week).</Text>
+      )}
+    </View>
+  );
+}
+
 function CompareCard({ title, snap, unitLabel, theme }: { title: string; snap: ReturnType<typeof cycleWeekSnapshot> | null; unitLabel: string; theme: any }) {
   return (
     <View style={[styles.compareCard, { borderColor: theme.border, backgroundColor: theme.card }]}>
@@ -433,4 +556,5 @@ const styles = StyleSheet.create({
   deltaRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   deltaLabel: { fontSize: 13 },
   deltaValue: { fontSize: 14, fontWeight: "800" },
+  weeklyHint: { fontSize: 11, marginTop: spacing.xs, fontStyle: "italic" },
 });

@@ -98,3 +98,73 @@ export function uniqueCycles(workouts: WorkoutLog[]): number[] {
   for (const w of workouts) set.add(w.cycle);
   return Array.from(set).sort((a, b) => b - a);
 }
+
+// ─── Texas Method ─────────────────────────────────────────────────────────
+// TM stores `weekIndex` in the workout's `cycle` field. The Intensity Day
+// PR attempt is logged with week === "Intensity Day" and the work set has
+// isAmrap === true (PR attempt = AMRAP-equivalent in our schema).
+
+export interface IntensityRow {
+  week: number;
+  weight: number;
+  reps: number;
+  e1rm: number;
+}
+
+// Per-week intensity-day PR result for a single lift. Returned in
+// reverse-chronological order (most recent week first) to match the
+// 5/3/1 amrapTableForLift convention.
+export function intensityTableForLift(workouts: WorkoutLog[], lift: string): IntensityRow[] {
+  const byWeek = new Map<number, IntensityRow>();
+  for (const w of workouts) {
+    if (w.program !== "texasMethod") continue;
+    if (w.exercise !== lift) continue;
+    if (w.week !== "Intensity Day") continue;
+    const pr = w.sets.find((s) => s.isAmrap && s.actualReps > 0);
+    if (!pr) continue;
+    if (byWeek.has(w.cycle)) continue;
+    byWeek.set(w.cycle, {
+      week: w.cycle,
+      weight: pr.weight,
+      reps: pr.actualReps,
+      e1rm: calcE1RM(pr.weight, pr.actualReps),
+    });
+  }
+  return Array.from(byWeek.values()).sort((a, b) => b.week - a.week);
+}
+
+// Cross-lift weekly view: each row is one week, columns are each lift's
+// Friday Intensity Day weight. `null` cell when that lift wasn't attempted
+// that week (e.g. off-week upper-body lift).
+export interface WeekRow {
+  week: number;
+  weights: Record<string, number | null>;
+}
+
+export function weeklyProgressionTable(workouts: WorkoutLog[], lifts: string[]): WeekRow[] {
+  const byWeek = new Map<number, WeekRow>();
+  for (const w of workouts) {
+    if (w.program !== "texasMethod") continue;
+    if (w.week !== "Intensity Day") continue;
+    if (!lifts.includes(w.exercise)) continue;
+    const pr = w.sets.find((s) => s.isAmrap && s.actualReps > 0);
+    if (!pr) continue;
+    let row = byWeek.get(w.cycle);
+    if (!row) {
+      row = { week: w.cycle, weights: Object.fromEntries(lifts.map((l) => [l, null])) };
+      byWeek.set(w.cycle, row);
+    }
+    row.weights[w.exercise] = pr.weight;
+  }
+  return Array.from(byWeek.values()).sort((a, b) => b.week - a.week);
+}
+
+// All weeks present in TM workout history. Used for empty-state checks.
+export function uniqueTMWeeks(workouts: WorkoutLog[]): number[] {
+  const set = new Set<number>();
+  for (const w of workouts) {
+    if (w.program !== "texasMethod") continue;
+    set.add(w.cycle);
+  }
+  return Array.from(set).sort((a, b) => b - a);
+}

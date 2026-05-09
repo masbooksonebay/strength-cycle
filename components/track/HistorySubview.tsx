@@ -4,6 +4,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useApp } from "../../lib/context";
 import { WorkoutLog } from "../../lib/store";
 import { calcE1RM, WEEKS } from "../../lib/program";
+import { ProgramId } from "../../lib/programs";
+
+// Phase filter / tag-edit options per program. 5/3/1 keeps its WEEKS array
+// verbatim; TM uses the three day phases its workouts log under.
+const TM_PHASES = ["Volume Day", "Recovery Day", "Intensity Day"] as const;
+
+function phasesForProgram(program: ProgramId): readonly string[] {
+  return program === "texasMethod" ? TM_PHASES : WEEKS;
+}
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../common/NumericInputWithDone";
 import { SheetBackdrop } from "../common/SheetBackdrop";
@@ -21,6 +30,13 @@ export function HistorySubview() {
   const [tagEdit, setTagEdit] = useState<WorkoutLog | null>(null);
   const [tagCycleInput, setTagCycleInput] = useState("");
   const [tagPhase, setTagPhase] = useState<string>("5/5/5");
+
+  // Filter dropdown shows phases for the active program (mental model = "what
+  // I'm training right now"). Tag-edit phase picker, by contrast, shows phases
+  // for the workout's OWN program — re-tagging a 5/3/1 workout with TM phases
+  // would corrupt its data shape.
+  const filterPhases = phasesForProgram(data.activeProgram);
+  const tagEditPhases = phasesForProgram(tagEdit?.program ?? data.activeProgram);
 
   const openTagEdit = (w: WorkoutLog) => {
     setTagEdit(w);
@@ -176,7 +192,7 @@ export function HistorySubview() {
             <TouchableOpacity onPress={() => setShowPhasePick(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.lg }}>
-            {(["All", ...WEEKS] as const).map((p) => {
+            {(["All", ...filterPhases] as const).map((p) => {
               const label = p === "All" ? "All phases" : p;
               const active = phaseFilter === p;
               return (
@@ -213,7 +229,7 @@ export function HistorySubview() {
 
             <Text style={[styles.tagLabel, { color: theme.textSecondary }]}>PHASE</Text>
             <View style={styles.tagPhaseRow}>
-              {WEEKS.map((w) => (
+              {tagEditPhases.map((w) => (
                 <TouchableOpacity key={w} onPress={() => setTagPhase(w)} style={[styles.tagPhaseBtn, { borderColor: theme.border }, tagPhase === w && { backgroundColor: theme.accent, borderColor: theme.accent }]}>
                   <Text style={[styles.tagPhaseText, { color: tagPhase === w ? "#fff" : theme.text }]}>{w === "Deload" ? "DELOAD" : w}</Text>
                 </TouchableOpacity>
