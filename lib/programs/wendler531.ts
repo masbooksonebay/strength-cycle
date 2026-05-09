@@ -15,6 +15,7 @@ export const WENDLER531_METADATA: ProgramMetadata = {
   cycleStructure: "four-week",
   primaryMetricLabel: "Training Max",
   primaryMetricAbbreviation: "TM",
+  setupRoute: "wendler531-setup",
 };
 
 export const MAIN_LIFTS = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as const;

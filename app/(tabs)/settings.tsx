@@ -2,7 +2,9 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Mo
 import { Ionicons } from "@expo/vector-icons";
 import * as StoreReview from "expo-store-review";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
+import { PROGRAMS } from "../../lib/programs";
 import { spacing, borderRadius } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import { buildSampleWorkouts, SAMPLE_DATA_ENABLED_KEY } from "../../lib/sampleData";
@@ -117,7 +119,9 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
 
 export default function SettingsScreen() {
   const { data, theme, updateSettings, updateLift, changeUnits } = useApp();
+  const router = useRouter();
   const s = data.settings;
+  const activeProgramName = PROGRAMS[data.activeProgram].displayName;
   const unitLabel = s.units === "lb" ? "lbs" : "kg";
   const [editingRM, setEditingRM] = useState<string | null>(null);
   const [rmValue, setRmValue] = useState("");
@@ -285,14 +289,18 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Programs" theme={theme}>
-        <Row label="5/3/1" theme={theme} right={<Text style={[styles.activeLabel, { color: theme.accent }]}>Active</Text>} />
-        <Row label="5/3/1 Program Guide" theme={theme} right={
-          <TouchableOpacity onPress={() => setShowGuide(true)} style={styles.tapRow}>
+        <Row label="Active Program" theme={theme} onPress={() => router.push("/settings/program-switcher")} right={
+          <View style={styles.tapRow}>
+            <Text style={[styles.valueText, { color: theme.accent }]}>{activeProgramName}</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </View>
+        } />
+        <Row label="5/3/1 Program Guide" theme={theme} last onPress={() => setShowGuide(true)} right={
+          <View style={styles.tapRow}>
             <Ionicons name="book-outline" size={18} color={theme.textSecondary} />
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
-          </TouchableOpacity>
+          </View>
         } />
-        <Row label="More programs" theme={theme} last right={<View style={styles.lockedRow}><Ionicons name="lock-closed" size={14} color={theme.textSecondary} /><Text style={[styles.lockedText, { color: theme.textSecondary }]}>Coming soon</Text></View>} />
       </Section>
 
       {SHOW_IAP_UI && (

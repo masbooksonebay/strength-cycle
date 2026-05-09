@@ -35,6 +35,7 @@ function Inner() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.background } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="settings/program-switcher" options={{ presentation: "modal" }} />
       </Stack>
     </>
   );

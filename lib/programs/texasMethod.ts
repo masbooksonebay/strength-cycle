@@ -15,6 +15,7 @@ export const TEXAS_METHOD_METADATA: ProgramMetadata = {
   cycleStructure: "weekly",
   primaryMetricLabel: "5 Rep Max",
   primaryMetricAbbreviation: "5RM",
+  setupRoute: "texasmethod-setup",
 };
 
 export type TmDay = "volume" | "recovery" | "intensity";

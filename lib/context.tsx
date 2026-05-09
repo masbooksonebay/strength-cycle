@@ -43,6 +43,7 @@ interface AppCtx {
   deleteWorkout: (id: string) => void;
   setCurrentCycle: (n: number) => void;
   setActiveProgram: (id: ProgramId) => void;
+  switchProgram: (id: ProgramId) => void;
   updateWendler531State: (updates: Partial<Wendler531State>) => void;
   updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
   setOnboardingComplete: (complete: boolean) => void;
@@ -66,6 +67,7 @@ const Ctx = createContext<AppCtx>({
   deleteWorkout: () => {},
   setCurrentCycle: () => {},
   setActiveProgram: () => {},
+  switchProgram: () => {},
   updateWendler531State: () => {},
   updateTexasMethodState: () => {},
   setOnboardingComplete: () => {},
@@ -134,6 +136,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [data, persist]);
 
   const setActiveProgram = useCallback((id: ProgramId) => {
+    persist({ ...data, activeProgram: id });
+  }, [data, persist]);
+
+  // Atomic program switch (Phase 5B). Same shape as completeOnboarding —
+  // single setState + persist, id passed in directly so no read-modify-write
+  // and no closure-staleness if a caller chains follow-on actions in the
+  // same tick. Both programs' state slices are preserved on switch.
+  const switchProgram = useCallback((id: ProgramId) => {
     persist({ ...data, activeProgram: id });
   }, [data, persist]);
 
@@ -256,6 +266,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       deleteWorkout,
       setCurrentCycle,
       setActiveProgram,
+      switchProgram,
       updateWendler531State,
       updateTexasMethodState,
       setOnboardingComplete,

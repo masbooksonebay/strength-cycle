@@ -14,6 +14,10 @@ export interface ProgramMetadata {
   cycleStructure: "four-week" | "weekly" | "per-session";
   primaryMetricLabel: string;
   primaryMetricAbbreviation: string;
+  // Route slug under app/onboarding/ for the program's seed-input screen.
+  // Used by both the first-launch onboarding flow and the in-app program
+  // switcher when activating a program for the first time.
+  setupRoute: string;
 }
 
 export interface ProgramSet {

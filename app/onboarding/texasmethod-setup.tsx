@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
@@ -20,6 +20,8 @@ const LIFT_NAMES = ["Squat", "Bench Press", "Overhead Press", "Deadlift"] as con
 export default function TexasMethodSetup() {
   const { data, theme, completeOnboarding } = useApp();
   const router = useRouter();
+  const { return: returnTo } = useLocalSearchParams<{ return?: string }>();
+  const fromSettings = returnTo === "settings";
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
 
   const [oneRMMode, setOneRMMode] = useState(false);
@@ -37,11 +39,14 @@ export default function TexasMethodSetup() {
       if (v > 0) liftMaxes[name] = { value: v, kind: oneRMMode ? "oneRM" : "fiveRM" };
     }
     const seeded = seedTexasMethodState({ liftMaxes, powerCleanEnabled: false });
+    // completeOnboarding sets onboardingComplete=true alongside the patch.
+    // Idempotent if already true (the in-app switcher path), so safe to
+    // reuse here for both the first-launch and switch-from-settings flows.
     completeOnboarding({
       activeProgram: "texasMethod",
       programs: { ...data.programs, texasMethod: seeded },
     });
-    router.replace("/(tabs)");
+    router.replace(fromSettings ? "/(tabs)/settings" : "/(tabs)");
   };
 
   const inputLabel = oneRMMode ? "1RM" : "5RM";

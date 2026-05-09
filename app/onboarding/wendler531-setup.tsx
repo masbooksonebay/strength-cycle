@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
@@ -18,6 +18,8 @@ const LIFT_NAMES = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as con
 export default function Wendler531Setup() {
   const { data, theme, completeOnboarding } = useApp();
   const router = useRouter();
+  const { return: returnTo } = useLocalSearchParams<{ return?: string }>();
+  const fromSettings = returnTo === "settings";
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
 
   const [values, setValues] = useState<Record<string, string>>({
@@ -33,8 +35,11 @@ export default function Wendler531Setup() {
       const v = parseFloat(values[l.name]);
       return v > 0 ? { ...l, oneRepMax: v } : l;
     });
+    // completeOnboarding sets onboardingComplete=true alongside the patch.
+    // Idempotent if already true (the in-app switcher path), so safe to
+    // reuse here for both the first-launch and switch-from-settings flows.
     completeOnboarding({ activeProgram: "wendler531", lifts: nextLifts });
-    router.replace("/(tabs)");
+    router.replace(fromSettings ? "/(tabs)/settings" : "/(tabs)");
   };
 
   return (
