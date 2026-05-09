@@ -54,6 +54,10 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />,
         }}
       />
+      {/* Per-program workout screens live under _screens/ but are mounted by
+          the index.tsx router, not directly. Hide them from the tab bar. */}
+      <Tabs.Screen name="_screens/Wendler531WorkoutScreen" options={{ href: null }} />
+      <Tabs.Screen name="_screens/TexasMethodWorkoutScreen" options={{ href: null }} />
     </Tabs>
   );
 }
