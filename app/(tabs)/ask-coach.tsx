@@ -40,6 +40,7 @@ import { fetch as expoFetch } from "expo/fetch";
 import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
 import { calcTM } from "../../lib/program";
+import { PROGRAMS } from "../../lib/programs";
 import { spacing, borderRadius } from "../../constants/theme";
 
 const ASK_COACH_API_URL = "https://hybrid-rockstar-api.vercel.app/api/ask-coach";
@@ -69,7 +70,9 @@ interface AskCoachContext {
   program: string;
 }
 
-const RULES_SECTIONS: { title: string; body: string }[] = [
+type RulesSection = { title: string; body: string };
+
+const WENDLER_531_RULES: RulesSection[] = [
   {
     title: "TRAINING MAX (TM) — WHAT IT IS",
     body:
@@ -102,8 +105,49 @@ const RULES_SECTIONS: { title: string; body: string }[] = [
   },
 ];
 
+const TEXAS_METHOD_RULES: RulesSection[] = [
+  {
+    title: "WEEKLY STRUCTURE — V/R/I",
+    body:
+      "Three days per week, traditionally Mon/Wed/Fri.\n- Volume Day: 5x5 squat @ 90% 5RM, 5x5 bench OR press @ 90% 5RM, 1x5 deadlift @ 80% 5RM\n- Recovery Day: 2x5 squat @ 80% Volume Day weight, 3x5 off-week press, 3 sets chin-ups to AMRAP\n- Intensity Day: 1x5 squat (NEW 5RM), 1x5 bench/press (NEW 5RM), optional 5x3 power clean\nEach week is one complete adaptation cycle. Don't add days. Don't skip Recovery Day.",
+  },
+  {
+    title: "BENCH / PRESS ALTERNATION",
+    body:
+      "Bench Press and Overhead Press alternate week-by-week as the main upper-body lift.\n- Odd weeks: Bench is main (5x5 Volume, PR Friday). OHP is secondary (3x5 Recovery only).\n- Even weeks: OHP is main. Bench is secondary.\nEach upper-body lift gets a PR every 2 weeks.",
+  },
+  {
+    title: "PROGRESSION RULES",
+    body:
+      "After a successful Intensity Day (5+ clean reps on the PR set):\n- Squat: +5 lbs / +2.5 kg every successful Friday\n- Bench Press: +2.5-5 lbs / +1.25-2.5 kg every 2 weeks\n- Overhead Press: +2.5-5 lbs / +1.25-2.5 kg every 2 weeks\n- Deadlift: +5 lbs / +2.5 kg every week (independent)\nMicro-loading (smaller jumps) is fair game for upper body once gross increments stop landing.",
+  },
+  {
+    title: "STALL RESPONSE",
+    body:
+      "AMRAP < 5 reps on Intensity Day = a stall.\n- First stall: pick one — repeat next week, or cut Volume Day load by 10%\n- Second consecutive stall: deload to 85% of stalled weight, work back up over 2-3 weeks\n- Multi-stall: shift rep scheme — 5 → 2x3 → 3x2 → 5x1 — to keep loading without grinding form",
+  },
+  {
+    title: "RECOVERY IS PROGRAMMED",
+    body:
+      "Texas Method requires recovery as program input, not lifestyle bonus:\n- Eat in a 200-300 cal surplus\n- Sleep 8+ hours\n- Do NOT run TM in a caloric deficit\nMost stalls on Texas Method are recovery problems, not programming problems.",
+  },
+  {
+    title: "WHO IS THIS FOR",
+    body:
+      "Texas Method is for INTERMEDIATE lifters (12-24+ months training, post-novice). If you can still add weight to the bar every workout, you're not done with linear progression yet — run Starting Strength or another LP first.\n\nThe PR attempt on Intensity Day is supposed to be HARD. If you're hitting 8-10 easy reps, your training max is too low.",
+  },
+  {
+    title: "POWER CLEAN (OPTIONAL)",
+    body:
+      "Practical Programming includes 5x3 Power Clean at ~70% 1RM on Intensity Day. It's optional — many lifters skip it.\n\nTurn it on in Settings if you have Olympic lifting experience or coached technique. Otherwise leave it off; technical work without coaching can build bad patterns.",
+  },
+];
+
 export default function AskCoachScreen() {
   const { data, theme } = useApp();
+  const activeProgram = data.activeProgram;
+  const programLabel = PROGRAMS[activeProgram].displayName;
+  const isTm = activeProgram === "texasMethod";
   const tabBarHeight = useBottomTabBarHeight();
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -136,10 +180,20 @@ export default function AskCoachScreen() {
   const buildContext = (): AskCoachContext => {
     const tmPct = data.settings.tmPercentage;
     const currentTMs: Record<string, number> = {};
-    for (const lift of data.lifts) {
-      currentTMs[lift.name] = lift.trainingMax ?? calcTM(lift.oneRepMax, tmPct);
+    if (isTm) {
+      // For Texas Method we send 5RMs in the same field — the server is told via
+      // `program` how to label them in its prompt.
+      const fiveRMs = data.programs.texasMethod.fiveRMs;
+      for (const lift of data.lifts) {
+        if (typeof fiveRMs[lift.name] === "number") currentTMs[lift.name] = fiveRMs[lift.name];
+      }
+    } else {
+      for (const lift of data.lifts) {
+        currentTMs[lift.name] = lift.trainingMax ?? calcTM(lift.oneRepMax, tmPct);
+      }
     }
     const amrapWorkouts = [...data.workouts]
+      .filter((w) => w.program === undefined || w.program === activeProgram)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .filter((w) => w.sets.some((s) => s.isAmrap && s.actualReps > 0));
     const recentAmraps: RecentAmrap[] = amrapWorkouts.slice(0, 3).map((w) => {
@@ -148,7 +202,10 @@ export default function AskCoachScreen() {
     });
     const cyclePhase = amrapWorkouts[0]?.week ?? "5/5/5";
     const unit = data.settings.units === "lb" ? "lbs" : "kg";
-    return { currentTMs, cycleNumber: data.programs.wendler531.currentCycle, cyclePhase, recentAmraps, unit, program: data.activeProgram };
+    const cycleNumber = isTm
+      ? data.programs.texasMethod.weekIndex
+      : data.programs.wendler531.currentCycle;
+    return { currentTMs, cycleNumber, cyclePhase, recentAmraps, unit, program: data.activeProgram };
   };
 
   const sendMessage = async (text: string) => {
@@ -245,19 +302,32 @@ export default function AskCoachScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  const emptyCopy = isTm
+    ? "Ask Coach anything about Texas Method — Volume/Recovery/Intensity structure, 5RM PR attempts, bench/press alternation, stall response, or recovery requirements."
+    : "Ask Coach anything about 5/3/1 — training max management, AMRAP interpretation, assistance templates, deload decisions, or programming questions.";
+  const placeholder = isTm
+    ? "Ask Coach anything about Texas Method..."
+    : "Ask Coach anything about 5/3/1...";
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.segWrap}>
-          <Segmented
-            value={tab}
-            onChange={setTab}
-            theme={theme}
-            options={[
-              { key: "chat" as Tab, label: "Chat" },
-              { key: "rules" as Tab, label: "Guide" },
-            ]}
-          />
+        <View>
+          <View style={styles.segWrap}>
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              theme={theme}
+              options={[
+                { key: "chat" as Tab, label: "Chat" },
+                { key: "rules" as Tab, label: "Guide" },
+              ]}
+            />
+          </View>
+          <View style={[styles.programIndicator, { borderBottomColor: theme.border }]}>
+            <Ionicons name="ribbon-outline" size={12} color={theme.accent} />
+            <Text style={[styles.programIndicatorText, { color: theme.textSecondary }]}>Coaching: <Text style={{ color: theme.accent, fontWeight: "700" }}>{programLabel}</Text></Text>
+          </View>
         </View>
       </TouchableWithoutFeedback>
 
@@ -270,9 +340,11 @@ export default function AskCoachScreen() {
           sendMessage={sendMessage}
           scrollRef={scrollRef}
           keyboardLift={keyboardLift}
+          emptyCopy={emptyCopy}
+          placeholder={placeholder}
         />
       ) : (
-        <RulesView theme={theme} />
+        <RulesView theme={theme} sections={isTm ? TEXAS_METHOD_RULES : WENDLER_531_RULES} programLabel={programLabel} />
       )}
     </View>
   );
@@ -286,6 +358,8 @@ function ChatView({
   sendMessage,
   scrollRef,
   keyboardLift,
+  emptyCopy,
+  placeholder,
 }: {
   theme: any;
   messages: Message[];
@@ -294,6 +368,8 @@ function ChatView({
   sendMessage: (text: string) => void;
   scrollRef: React.RefObject<ScrollView | null>;
   keyboardLift: number;
+  emptyCopy: string;
+  placeholder: string;
 }) {
   const canSend = input.trim().length > 0;
   return (
@@ -310,7 +386,7 @@ function ChatView({
           <View style={styles.emptyWrap}>
             <Ionicons name="chatbubbles-outline" size={40} color={theme.textSecondary} style={{ marginBottom: spacing.md }} />
             <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              Ask Coach anything about 5/3/1 — training max management, AMRAP interpretation, assistance templates, deload decisions, or programming questions.
+              {emptyCopy}
             </Text>
           </View>
         ) : (
@@ -339,7 +415,7 @@ function ChatView({
         <View style={[styles.inputPill, { backgroundColor: PILL_BG }]}>
           <TextInput
             style={[styles.input, { color: theme.text }]}
-            placeholder="Ask Coach anything about 5/3/1..."
+            placeholder={placeholder}
             placeholderTextColor={theme.textSecondary}
             value={input}
             onChangeText={setInput}
@@ -366,7 +442,7 @@ function ChatView({
   );
 }
 
-function RulesView({ theme }: { theme: any }) {
+function RulesView({ theme, sections, programLabel }: { theme: any; sections: RulesSection[]; programLabel: string }) {
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const toggle = (title: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -375,9 +451,9 @@ function RulesView({ theme }: { theme: any }) {
   return (
     <ScrollView contentContainerStyle={styles.rulesContent} keyboardDismissMode="on-drag">
       <Text style={[styles.rulesNote, { color: theme.textSecondary }]}>
-        5/3/1 reference — tap any section to expand.
+        {programLabel} reference — tap any section to expand.
       </Text>
-      {RULES_SECTIONS.map((section) => {
+      {sections.map((section) => {
         const open = !!openMap[section.title];
         return (
           <View key={section.title} style={[styles.ruleSection, { borderBottomColor: theme.border }]}>
@@ -408,6 +484,16 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, textAlign: "center", lineHeight: 20 },
   bubble: { maxWidth: "80%", borderRadius: borderRadius.md, padding: spacing.md, marginBottom: spacing.sm },
   bubbleText: { fontSize: 15, lineHeight: 22 },
+
+  programIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 6,
+    borderBottomWidth: 0.5,
+  },
+  programIndicatorText: { fontSize: 11, letterSpacing: 0.4 },
 
   disclaimer: { fontSize: 11, textAlign: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
 
