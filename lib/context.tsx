@@ -46,6 +46,7 @@ interface AppCtx {
   updateWendler531State: (updates: Partial<Wendler531State>) => void;
   updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
   setOnboardingComplete: (complete: boolean) => void;
+  completeOnboarding: (patch: Partial<AppData>) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
   removeExtraSet: (liftName: string, index: number) => void;
   changeUnits: (next: WeightUnit) => void;
@@ -68,6 +69,7 @@ const Ctx = createContext<AppCtx>({
   updateWendler531State: () => {},
   updateTexasMethodState: () => {},
   setOnboardingComplete: () => {},
+  completeOnboarding: () => {},
   addExtraSet: () => {},
   removeExtraSet: () => {},
   changeUnits: () => {},
@@ -157,6 +159,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setOnboardingComplete = useCallback((complete: boolean) => {
     persist({ ...data, onboardingComplete: complete });
+  }, [data, persist]);
+
+  // Atomic onboarding finalizer: merges program seed + activeProgram + lifts
+  // into a single persist alongside onboardingComplete, sidestepping the
+  // closure-staleness race that would otherwise occur if a caller invoked
+  // updateTexasMethodState() and setOnboardingComplete() in the same tick.
+  const completeOnboarding = useCallback((patch: Partial<AppData>) => {
+    persist({ ...data, ...patch, onboardingComplete: true });
   }, [data, persist]);
 
   const addExtraSet = useCallback((liftName: string, set: ExtraSet) => {
@@ -249,6 +259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateWendler531State,
       updateTexasMethodState,
       setOnboardingComplete,
+      completeOnboarding,
       addExtraSet,
       removeExtraSet,
       changeUnits,
