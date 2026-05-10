@@ -8,6 +8,7 @@ import { PROGRAMS } from "../../lib/programs";
 import { spacing, borderRadius } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import { buildSampleWorkouts, SAMPLE_DATA_ENABLED_KEY } from "../../lib/sampleData";
+import { buildSeedPatch, buildWipePatch } from "../../lib/devSeed";
 import {
   BAR_PRESETS,
   DEFAULT_PLATES_LB,
@@ -105,6 +106,48 @@ function DeveloperSection() {
           </View>
           <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: theme.accent }} />
         </View>
+      </View>
+    </View>
+  );
+}
+
+// Phase 5G: __DEV__-only Squat history seed/wipe for ASC screenshot prep.
+// Separate from the broader DeveloperSection (which seeds 4-lift sample data
+// across 12 cycles via the toggle) — this one focuses on Squat history aligned
+// with the active program's analytics, and force-switches units to kg so the
+// chart values read as the kg numbers spec'd in lib/devSeed.ts.
+function DeveloperToolsSection() {
+  const { data, theme, applyDevPatch } = useApp();
+  const activeProgramName = PROGRAMS[data.activeProgram].displayName;
+
+  const onSeed = () => {
+    applyDevPatch(buildSeedPatch(data, data.activeProgram));
+    Alert.alert(
+      "Squat history seeded",
+      `${activeProgramName} squat history populated. Open the Track tab to see e1RM chart and progression table.`,
+    );
+  };
+
+  const onWipe = () => {
+    Alert.alert(
+      "Wipe Workout Data?",
+      "This will delete all logged workouts and reset Squat 1RM to 90 kg. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Wipe", style: "destructive", onPress: () => applyDevPatch(buildWipePatch(data)) },
+      ],
+    );
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={[styles.sectionTitle, { color: theme.accent }]}>DEVELOPER TOOLS</Text>
+      <Text style={[styles.devSubtitle, { color: theme.textSecondary }]}>
+        Visible in development builds only — does not ship to App Store
+      </Text>
+      <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <Row label="Seed Sample Squat History" theme={theme} onPress={onSeed} right={<Ionicons name="flask-outline" size={18} color={theme.textSecondary} />} />
+        <Row label="Wipe All Workout Data" theme={theme} onPress={onWipe} last right={<Ionicons name="trash-outline" size={18} color={theme.accent} />} />
       </View>
     </View>
   );
@@ -325,6 +368,7 @@ export default function SettingsScreen() {
       </Section>
 
       {__DEV__ && <DeveloperSection />}
+      {__DEV__ && <DeveloperToolsSection />}
 
       <Text style={[styles.version, { color: theme.textSecondary }]}>Strength Cycle v1.0.0</Text>
       <View style={{ height: 40 }} />

@@ -53,6 +53,10 @@ interface AppCtx {
   changeUnits: (next: WeightUnit) => void;
   replaceSampleWorkouts: (workouts: WorkoutLog[]) => void;
   clearSampleWorkouts: () => void;
+  // Atomic merge for the __DEV__-only seed/wipe helpers in Settings.
+  // Exposed on the context so dev seeds land in a single persist call (avoids
+  // racing with multi-action chains like changeUnits → updateLift → addWorkout).
+  applyDevPatch: (patch: Partial<AppData>) => void;
   reload: () => Promise<void>;
 }
 
@@ -77,6 +81,7 @@ const Ctx = createContext<AppCtx>({
   changeUnits: () => {},
   replaceSampleWorkouts: () => {},
   clearSampleWorkouts: () => {},
+  applyDevPatch: () => {},
   reload: async () => {},
 });
 
@@ -248,6 +253,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     persist({ ...data, workouts: data.workouts.filter((w) => w._isSampleData !== true) });
   }, [data, persist]);
 
+  const applyDevPatch = useCallback((patch: Partial<AppData>) => {
+    persist({ ...data, ...patch });
+  }, [data, persist]);
+
   const reload = useCallback(async () => { const d = await loadData(); setData(applyIapOverrides(d)); }, []);
 
   const theme = data.settings.darkMode ? darkTheme : lightTheme;
@@ -275,6 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       changeUnits,
       replaceSampleWorkouts,
       clearSampleWorkouts,
+      applyDevPatch,
       reload,
     }}>
       <TimerProvider defaultDuration={data.settings.restTimerDuration}>
