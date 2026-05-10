@@ -332,7 +332,7 @@ export default function AskCoachScreen() {
             />
           </View>
           <View style={[styles.programIndicator, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.programIndicatorText, { color: theme.textSecondary }]}>Coaching: <Text style={{ color: theme.accent, fontWeight: "700" }}>{programLabel}</Text></Text>
+            <Text style={[styles.programIndicatorText, { color: theme.textSecondary }]}><Text style={{ color: theme.accent, fontWeight: "700" }}>{programLabel}</Text> Coach</Text>
           </View>
         </View>
       </TouchableWithoutFeedback>
