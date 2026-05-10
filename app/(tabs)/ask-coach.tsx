@@ -332,7 +332,6 @@ export default function AskCoachScreen() {
             />
           </View>
           <View style={[styles.programIndicator, { borderBottomColor: theme.border }]}>
-            <Ionicons name="ribbon-outline" size={12} color={theme.accent} />
             <Text style={[styles.programIndicatorText, { color: theme.textSecondary }]}>Coaching: <Text style={{ color: theme.accent, fontWeight: "700" }}>{programLabel}</Text></Text>
           </View>
         </View>
@@ -496,7 +495,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
     paddingVertical: 6,
     borderBottomWidth: 0.5,
   },

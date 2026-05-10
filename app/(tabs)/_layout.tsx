@@ -21,7 +21,9 @@ export default function TabLayout() {
         options={{
           title: "Workout",
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="flame-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "barbell" : "barbell-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

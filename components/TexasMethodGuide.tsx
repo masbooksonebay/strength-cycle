@@ -42,8 +42,11 @@ const GLOSSARY: { term: string; def: string }[] = [
 ];
 
 const LEARN_MORE_LINKS: { label: string; desc: string; url: string }[] = [
-  { label: "Practical Programming for Strength Training", desc: "Rippetoe & Kilgore — the foundational text where the Texas Method is codified", url: "https://aasgaardco.com/store/books-posters-dvd/books/practical-programming-for-strength-training-3rd-edition/" },
-  { label: "Starting Strength wiki — Texas Method", desc: "Community-maintained reference with sample weeks", url: "https://startingstrength.com/training/the-texas-method-program-design" },
+  {
+    label: "Practical Programming for Strength Training",
+    desc: "Rippetoe & Baker — the foundational text where the Texas Method is codified",
+    url: "https://www.amazon.com/dp/0982522754?tag=profpeptide-20",
+  },
 ];
 
 function SubAccordion({

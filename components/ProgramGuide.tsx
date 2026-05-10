@@ -46,8 +46,11 @@ const GLOSSARY: { term: string; def: string }[] = [
 ];
 
 const LEARN_MORE_LINKS: { label: string; desc: string; url: string }[] = [
-  { label: "T-Nation", desc: "'How to Build Pure Strength' (original 5/3/1 article)", url: "https://t-nation.com/t/5-3-1-how-to-build-pure-strength/281694" },
-  { label: "Garage Gym Reviews", desc: "5/3/1 program breakdown with examples", url: "https://www.garagegymreviews.com/5-3-1-workout" },
+  {
+    label: "5/3/1: The Simplest and Most Effective Training System for Raw Strength",
+    desc: "Jim Wendler — the foundational text where 5/3/1 is codified (2nd Edition)",
+    url: "https://www.amazon.com/dp/B00686OYGQ?tag=profpeptide-20",
+  },
 ];
 
 function SubAccordion({
