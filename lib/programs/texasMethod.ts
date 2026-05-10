@@ -43,6 +43,26 @@ export function fiveRMFromOneRM(oneRM: number): number {
   return Math.round(oneRM * 0.85);
 }
 
+// Single source of truth for TM 5RM at render time. lifts[name].oneRepMax
+// drives every Volume / Recovery weight; Intensity Day reads intensityWeights
+// (which diverges as the user PRs) with this as the fallback. Rounded to the
+// user's precision setting so plate calculations land on real plates.
+export interface LiftLike {
+  name: string;
+  oneRepMax: number;
+}
+
+export function getCurrentFiveRM(args: {
+  lifts: LiftLike[];
+  lift: string;
+  precision: number;
+  rounding: RoundingMode;
+}): number {
+  const { lifts, lift, precision, rounding } = args;
+  const oneRM = lifts.find((l) => l.name === lift)?.oneRepMax ?? 0;
+  return roundToPrecision(oneRM * 0.85, precision, rounding);
+}
+
 // Volume Day: 5x5 squat at 90% of current 5RM, 5x5 main upper-body at 90% of 5RM,
 // 1x5 deadlift at 80% of 5RM (supplementary).
 //
@@ -204,8 +224,11 @@ export function applyIntensityDayProgression(args: {
   lift: TmLift;
   reps: number;
   units: WeightUnit;
+  // Caller supplies the current intensity baseline (intensityWeights[lift]
+  // with derived-5RM fallback) so progression is computed from a known floor.
+  currentIntensity: number;
 }): { state: TexasMethodState; stalled: boolean } {
-  const { state, lift, reps, units } = args;
+  const { state, lift, reps, units, currentIntensity } = args;
   const increment = defaultProgressionIncrement(lift, units);
   const stalled = reps < 5;
 
@@ -215,18 +238,16 @@ export function applyIntensityDayProgression(args: {
       state: {
         ...state,
         stallCount: nextStallCount,
-        pendingStallChoice: { lift, weight: state.intensityWeights[lift] ?? state.fiveRMs[lift] ?? 0 },
+        pendingStallChoice: { lift, weight: currentIntensity },
       },
       stalled: true,
     };
   }
 
-  const currentIntensity = state.intensityWeights[lift] ?? state.fiveRMs[lift] ?? 0;
   const nextIntensity = currentIntensity + increment;
   return {
     state: {
       ...state,
-      fiveRMs: { ...state.fiveRMs, [lift]: nextIntensity },
       intensityWeights: { ...state.intensityWeights, [lift]: nextIntensity },
       stallCount: { ...state.stallCount, [lift]: 0 },
       pendingStallChoice: null,
@@ -247,9 +268,11 @@ export function applyStallResponse(args: {
   response: StallResponse;
   precision: number;
   rounding: RoundingMode;
+  // Stalled intensity baseline supplied by caller (same source as the PR
+  // attempt that just stalled — intensityWeights[lift] ?? derived 5RM).
+  stalledWeight: number;
 }): TexasMethodState {
-  const { state, lift, response, precision, rounding } = args;
-  const stalledWeight = state.intensityWeights[lift] ?? state.fiveRMs[lift] ?? 0;
+  const { state, lift, response, precision, rounding, stalledWeight } = args;
 
   if (response === "repeat") {
     return { ...state, pendingStallChoice: null };
@@ -261,7 +284,6 @@ export function applyStallResponse(args: {
   const deloadWeight = roundToPrecision(stalledWeight * 0.85, precision, rounding);
   return {
     ...state,
-    fiveRMs: { ...state.fiveRMs, [lift]: deloadWeight },
     intensityWeights: { ...state.intensityWeights, [lift]: deloadWeight },
     pendingStallChoice: null,
   };
@@ -270,37 +292,29 @@ export function applyStallResponse(args: {
 // Volume Day cut multiplier when stall response was "cut10".
 export const VOLUME_CUT_MULTIPLIER = 0.9;
 
-// Seed initial Texas Method state from onboarding inputs. Accepts either a 5RM
-// directly or a 1RM (in which case 5RM is estimated via reverse Epley at 0.85).
-//
-// `liftMaxes` keys are lift names ("Squat", "Bench Press", "Deadlift",
-// "Overhead Press"). Each entry is { value, kind } where kind tells us whether
-// the value is a true 5RM the user knows or a 1RM we should derive from.
-export interface OnboardingMaxInput {
-  value: number;
-  kind: "fiveRM" | "oneRM";
-}
-
+// Seed initial Texas Method state. Reads each TM lift's oneRepMax from the
+// canonical lifts array and seeds intensityWeights to the derived 5RM so the
+// first Intensity Day has a starting target. After that, intensityWeights
+// progresses on its own via applyIntensityDayProgression.
 export function seedTexasMethodState(args: {
-  liftMaxes: Record<string, OnboardingMaxInput>;
+  lifts: LiftLike[];
+  precision: number;
+  rounding: RoundingMode;
   powerCleanEnabled?: boolean;
   bodyweight?: number;
 }): TexasMethodState {
-  const { liftMaxes, powerCleanEnabled = false, bodyweight = 0 } = args;
-  const fiveRMs: Record<string, number> = {};
+  const { lifts, precision, rounding, powerCleanEnabled = false, bodyweight = 0 } = args;
   const intensityWeights: Record<string, number> = {};
   const stallCount: Record<string, number> = {};
 
-  for (const [lift, input] of Object.entries(liftMaxes)) {
-    const fiveRM = input.kind === "oneRM" ? fiveRMFromOneRM(input.value) : Math.round(input.value);
-    fiveRMs[lift] = fiveRM;
-    intensityWeights[lift] = fiveRM;
-    stallCount[lift] = 0;
+  for (const liftName of TM_LIFTS) {
+    const fiveRM = getCurrentFiveRM({ lifts, lift: liftName, precision, rounding });
+    if (fiveRM > 0) intensityWeights[liftName] = fiveRM;
+    stallCount[liftName] = 0;
   }
 
   return {
     weekIndex: 1,
-    fiveRMs,
     intensityWeights,
     stallCount,
     pendingStallChoice: null,
@@ -315,25 +329,6 @@ export function advanceWeekIndex(state: TexasMethodState): TexasMethodState {
   return { ...state, weekIndex: state.weekIndex + 1 };
 }
 
-// Deadlift on Volume Day is supplementary and progresses every week
-// regardless of upper-body alternation. Call this after a successful Volume
-// Day deadlift (5 reps clean).
-export function applyDeadliftVolumeProgression(args: {
-  state: TexasMethodState;
-  reps: number;
-  units: WeightUnit;
-}): TexasMethodState {
-  const { state, reps, units } = args;
-  if (reps < 5) return state;
-  const increment = deadliftWeeklyIncrement(units);
-  const current = state.fiveRMs.Deadlift ?? 0;
-  return {
-    ...state,
-    fiveRMs: { ...state.fiveRMs, Deadlift: current + increment },
-    intensityWeights: { ...state.intensityWeights, Deadlift: current + increment },
-  };
-}
-
 // Helper for sample-data and tests: produce the day prescription for a given
 // lift, day, and current state. Returns an empty array when that lift is not
 // trained on that day.
@@ -341,18 +336,21 @@ export function getDaySets(args: {
   day: TmDay;
   lift: TmLift;
   state: TexasMethodState;
+  // lifts is the canonical 1RM source — Volume / Recovery weights derive from
+  // it via getCurrentFiveRM. Settings 1RM edits propagate here automatically.
+  lifts: LiftLike[];
   precision: number;
   rounding: RoundingMode;
 }): ProgramSet[] {
-  const { day, lift, state, precision, rounding } = args;
-  const fiveRM = state.fiveRMs[lift] ?? 0;
+  const { day, lift, state, lifts, precision, rounding } = args;
+  const fiveRM = getCurrentFiveRM({ lifts, lift, precision, rounding });
 
   if (day === "volume") {
     return getVolumeDaySets({ lift, weekIndex: state.weekIndex, fiveRM, precision, rounding });
   }
   if (day === "recovery") {
     const main = mainUpperLiftForWeek(state.weekIndex);
-    const mainFiveRM = state.fiveRMs[main] ?? 0;
+    const mainFiveRM = getCurrentFiveRM({ lifts, lift: main, precision, rounding });
     const volumeDayWeight = roundToPrecision(mainFiveRM * 0.9, precision, rounding);
     return getRecoveryDaySets({
       lift,
@@ -364,6 +362,6 @@ export function getDaySets(args: {
     });
   }
   // intensity
-  const intensityWeight = state.intensityWeights[lift] ?? state.fiveRMs[lift] ?? 0;
+  const intensityWeight = state.intensityWeights[lift] ?? fiveRM;
   return getIntensityDaySets({ lift, weekIndex: state.weekIndex, intensityWeight, precision, rounding });
 }

@@ -52,14 +52,16 @@ export default function Wendler531Setup() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: theme.text }]}>Set your 1 Rep Max</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          We'll calculate your training max from these. You can change them anytime in Settings.
+        <Text style={[styles.title, { color: theme.text }]}>
+          Enter your current 1RM (or estimated 1RM)
         </Text>
 
         {LIFT_NAMES.map((name) => (
           <View key={name} style={[styles.row, { borderColor: theme.border, backgroundColor: theme.card }]}>
-            <Text style={[styles.rowLabel, { color: theme.text }]}>{name}</Text>
+            <View style={styles.labelGroup}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>{name}</Text>
+              <Text style={[styles.rmTag, { color: theme.accent }]}>1 RM</Text>
+            </View>
             <View style={styles.inputWrap}>
               <NumericInputWithDone
                 style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
@@ -73,6 +75,10 @@ export default function Wendler531Setup() {
             </View>
           </View>
         ))}
+
+        <Text style={[styles.helper, { color: theme.textSecondary }]}>
+          You can change these anytime in Settings.
+        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -95,8 +101,7 @@ export default function Wendler531Setup() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.lg, paddingTop: 64 },
-  title: { fontSize: 26, fontWeight: "900", marginBottom: 6 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
+  title: { fontSize: 24, fontWeight: "900", marginBottom: spacing.lg, lineHeight: 30 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -107,7 +112,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     marginBottom: spacing.sm + 2,
   },
-  rowLabel: { fontSize: 16, fontWeight: "600", flex: 1 },
+  labelGroup: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
+  rowLabel: { fontSize: 16, fontWeight: "600" },
+  rmTag: { fontSize: 11, fontWeight: "800", letterSpacing: 0.6 },
+  helper: { fontSize: 13, lineHeight: 18, marginTop: spacing.md, paddingHorizontal: spacing.xs },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: {
     borderWidth: 1,

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -13,7 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
-import { seedTexasMethodState, OnboardingMaxInput } from "../../lib/programs/texasMethod";
+import { seedTexasMethodState } from "../../lib/programs/texasMethod";
 
 const LIFT_NAMES = ["Squat", "Bench Press", "Overhead Press", "Deadlift"] as const;
 
@@ -24,7 +23,6 @@ export default function TexasMethodSetup() {
   const fromSettings = returnTo === "settings";
   const unitLabel = data.settings.units === "lb" ? "lbs" : "kg";
 
-  const [oneRMMode, setOneRMMode] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({
     Squat: "",
     "Bench Press": "",
@@ -33,23 +31,25 @@ export default function TexasMethodSetup() {
   });
 
   const finish = () => {
-    const liftMaxes: Record<string, OnboardingMaxInput> = {};
-    for (const name of LIFT_NAMES) {
-      const v = parseFloat(values[name]);
-      if (v > 0) liftMaxes[name] = { value: v, kind: oneRMMode ? "oneRM" : "fiveRM" };
-    }
-    const seeded = seedTexasMethodState({ liftMaxes, powerCleanEnabled: false });
-    // completeOnboarding sets onboardingComplete=true alongside the patch.
-    // Idempotent if already true (the in-app switcher path), so safe to
-    // reuse here for both the first-launch and switch-from-settings flows.
+    // Phase 5E: write 1RM directly to lifts (single source of truth). TM state's
+    // intensityWeights seed from the freshly-set lifts inside seedTexasMethodState.
+    const nextLifts = data.lifts.map((l) => {
+      const v = parseFloat(values[l.name]);
+      return v > 0 ? { ...l, oneRepMax: v } : l;
+    });
+    const seeded = seedTexasMethodState({
+      lifts: nextLifts,
+      precision: data.settings.precision,
+      rounding: data.settings.rounding,
+      powerCleanEnabled: false,
+    });
     completeOnboarding({
       activeProgram: "texasMethod",
+      lifts: nextLifts,
       programs: { ...data.programs, texasMethod: seeded },
     });
     router.replace(fromSettings ? "/(tabs)/settings" : "/(tabs)");
   };
-
-  const inputLabel = oneRMMode ? "1RM" : "5RM";
 
   return (
     <KeyboardAvoidingView
@@ -61,16 +61,16 @@ export default function TexasMethodSetup() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: theme.text }]}>Enter your current {inputLabel}</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {oneRMMode
-            ? "We'll estimate your 5RM as 85% of your 1RM (reverse Epley)."
-            : "Texas Method works from your current 5 rep max — the heaviest 5-rep set you can do today."}
+        <Text style={[styles.title, { color: theme.text }]}>
+          Enter your current 1RM (or estimated 1RM)
         </Text>
 
         {LIFT_NAMES.map((name) => (
           <View key={name} style={[styles.row, { borderColor: theme.border, backgroundColor: theme.card }]}>
-            <Text style={[styles.rowLabel, { color: theme.text }]}>{name}</Text>
+            <View style={styles.labelGroup}>
+              <Text style={[styles.rowLabel, { color: theme.text }]}>{name}</Text>
+              <Text style={[styles.rmTag, { color: theme.accent }]}>1 RM</Text>
+            </View>
             <View style={styles.inputWrap}>
               <NumericInputWithDone
                 style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
@@ -85,17 +85,9 @@ export default function TexasMethodSetup() {
           </View>
         ))}
 
-        <View style={[styles.toggleRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
-          <Text style={[styles.toggleLabel, { color: theme.text }]}>
-            I only know my 1RM — calculate 5RM for me
-          </Text>
-          <Switch
-            value={oneRMMode}
-            onValueChange={setOneRMMode}
-            trackColor={{ true: theme.accent }}
-            accessibilityLabel="Toggle 1RM input mode"
-          />
-        </View>
+        <Text style={[styles.helper, { color: theme.textSecondary }]}>
+          You can change these anytime in Settings.
+        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -115,8 +107,7 @@ export default function TexasMethodSetup() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.lg, paddingTop: 64 },
-  title: { fontSize: 26, fontWeight: "900", marginBottom: 6 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
+  title: { fontSize: 24, fontWeight: "900", marginBottom: spacing.lg, lineHeight: 30 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -127,7 +118,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     marginBottom: spacing.sm + 2,
   },
-  rowLabel: { fontSize: 16, fontWeight: "600", flex: 1 },
+  labelGroup: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
+  rowLabel: { fontSize: 16, fontWeight: "600" },
+  rmTag: { fontSize: 11, fontWeight: "800", letterSpacing: 0.6 },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
   input: {
     borderWidth: 1,
@@ -140,18 +133,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   unit: { fontSize: 13, fontWeight: "600" },
-  toggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
-    gap: spacing.md,
-  },
-  toggleLabel: { fontSize: 14, fontWeight: "600", flex: 1 },
+  helper: { fontSize: 13, lineHeight: 18, marginTop: spacing.md, paddingHorizontal: spacing.xs },
   footer: { padding: spacing.lg, paddingBottom: spacing.xl + 8 },
   btn: { borderRadius: borderRadius.sm, height: 56, alignItems: "center", justifyContent: "center" },
   btnText: { color: "#fff", fontSize: 17, fontWeight: "700" },

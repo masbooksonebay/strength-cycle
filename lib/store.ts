@@ -184,7 +184,6 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
   const tmRaw = parsed.programs?.texasMethod ?? {};
   const texasMethodState: TexasMethodState = {
     weekIndex: typeof tmRaw.weekIndex === "number" ? tmRaw.weekIndex : 1,
-    fiveRMs: typeof tmRaw.fiveRMs === "object" && tmRaw.fiveRMs !== null ? tmRaw.fiveRMs : {},
     intensityWeights:
       typeof tmRaw.intensityWeights === "object" && tmRaw.intensityWeights !== null ? tmRaw.intensityWeights : {},
     stallCount: typeof tmRaw.stallCount === "object" && tmRaw.stallCount !== null ? tmRaw.stallCount : {},
@@ -216,6 +215,23 @@ function firstLaunchDefaults(): AppData {
   };
 }
 
+// Phase 5E migration: TestFlight builds 16-18 cached `programs.texasMethod.fiveRMs`
+// when the user entered values via the (now-removed) 5RM-mode toggle. Single source
+// of truth is now lifts[name].oneRepMax, so backfill any missing/zero 1RMs from the
+// cached 5RM via × 1.176 (Epley inverse). Lifts that already have a real 1RM (e.g.
+// from prior 5/3/1 onboarding) are left untouched. Idempotent: once the cached
+// fiveRMs field is gone (not re-written by post-5E code), the backfill is a no-op.
+function backfillOneRMsFromCachedFiveRMs(lifts: LiftData[], parsed: any): LiftData[] {
+  const cachedFiveRMs = parsed?.programs?.texasMethod?.fiveRMs;
+  if (!cachedFiveRMs || typeof cachedFiveRMs !== "object") return lifts;
+  return lifts.map((l) => {
+    const cached = cachedFiveRMs[l.name];
+    if (typeof cached !== "number" || cached <= 0) return l;
+    if (l.oneRepMax > 0 && l.oneRepMax !== 100) return l; // user already set a real 1RM
+    return { ...l, oneRepMax: Math.round(cached * 1.176) };
+  });
+}
+
 export async function loadData(): Promise<AppData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -229,7 +245,7 @@ export async function loadData(): Promise<AppData> {
           : workouts.length > 0 || (Array.isArray(parsed.log) && parsed.log.length > 0);
 
       const { log: _legacyLog, currentCycle: _legacyCycle, ...rest } = parsed;
-      return {
+      const merged: AppData = {
         ...DEFAULT_DATA,
         ...rest,
         activeProgram,
@@ -238,6 +254,8 @@ export async function loadData(): Promise<AppData> {
         onboardingComplete,
         settings: migrateSettings(parsed.settings),
       };
+      merged.lifts = backfillOneRMsFromCachedFiveRMs(merged.lifts, parsed);
+      return merged;
     }
   } catch {}
   return firstLaunchDefaults();

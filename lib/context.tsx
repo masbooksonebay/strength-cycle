@@ -215,7 +215,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       Object.fromEntries(Object.entries(m).map(([k, v]) => [k, convertWeight(v, from, next, nextPrecision, rounding)]));
     const nextTm: TexasMethodState = {
       ...tm,
-      fiveRMs: convertWeightMap(tm.fiveRMs),
       intensityWeights: convertWeightMap(tm.intensityWeights),
       bodyweight: tm.bodyweight ? convertWeight(tm.bodyweight, from, next, nextPrecision, rounding) : 0,
     };

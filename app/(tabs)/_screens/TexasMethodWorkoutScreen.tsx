@@ -20,9 +20,9 @@ import {
   TmDay,
   TmLift,
   advanceWeekIndex,
-  applyDeadliftVolumeProgression,
   applyIntensityDayProgression,
   applyStallResponse,
+  getCurrentFiveRM,
   getDaySets,
   mainUpperLiftForWeek,
 } from "../../../lib/programs/texasMethod";
@@ -68,12 +68,13 @@ export default function TexasMethodWorkoutScreen() {
         day,
         lift,
         state: tm,
+        lifts: data.lifts,
         precision: s.precision,
         rounding: s.rounding,
       });
       return sets.length > 0;
     });
-  }, [day, tm, s.precision, s.rounding]);
+  }, [day, tm, data.lifts, s.precision, s.rounding]);
 
   const showPowerClean = day === "volume" && tm.powerCleanEnabled;
 
@@ -101,12 +102,20 @@ export default function TexasMethodWorkoutScreen() {
   };
 
   const handleStallResponse = (lift: TmLift, response: "repeat" | "cut10" | "deload") => {
+    const fallbackFiveRM = getCurrentFiveRM({
+      lifts: data.lifts,
+      lift,
+      precision: s.precision,
+      rounding: s.rounding,
+    });
+    const stalledWeight = tm.intensityWeights[lift] ?? fallbackFiveRM;
     const next = applyStallResponse({
       state: tm,
       lift,
       response,
       precision: s.precision,
       rounding: s.rounding,
+      stalledWeight,
     });
     updateTexasMethodState(next);
   };
@@ -119,7 +128,7 @@ export default function TexasMethodWorkoutScreen() {
     const lift = logLift;
     const sets = lift === "PowerClean"
       ? [] // Power Clean has no computed prescription; user-driven only.
-      : getDaySets({ day, lift, state: tm, precision: s.precision, rounding: s.rounding });
+      : getDaySets({ day, lift, state: tm, lifts: data.lifts, precision: s.precision, rounding: s.rounding });
 
     const setLogs: SetLog[] = sets.map((set, i) => {
       const isWorkSet = !set.isWarmup;
@@ -163,13 +172,26 @@ export default function TexasMethodWorkoutScreen() {
             { cancelable: false },
           );
         } else {
-          const result = applyIntensityDayProgression({ state: tm, lift, reps: logReps, units });
+          const fallbackFiveRM = getCurrentFiveRM({
+            lifts: data.lifts,
+            lift,
+            precision: s.precision,
+            rounding: s.rounding,
+          });
+          const currentIntensity = tm.intensityWeights[lift] ?? fallbackFiveRM;
+          const result = applyIntensityDayProgression({
+            state: tm,
+            lift,
+            reps: logReps,
+            units,
+            currentIntensity,
+          });
           updateTexasMethodState(result.state);
         }
-      } else if (day === "volume" && lift === "Deadlift") {
-        const next = applyDeadliftVolumeProgression({ state: tm, reps: logReps, units });
-        updateTexasMethodState(next);
       }
+      // Phase 5E: deadlift no longer auto-progresses on Volume Day. With 1RM as
+      // the single source of truth, users advance Deadlift by editing 1RM in
+      // Settings (consistent with how every other lift's working weight scales).
     }
 
     closeLogModal();
@@ -255,6 +277,7 @@ export default function TexasMethodWorkoutScreen() {
             day,
             lift,
             state: tm,
+            lifts: data.lifts,
             precision: s.precision,
             rounding: s.rounding,
           });

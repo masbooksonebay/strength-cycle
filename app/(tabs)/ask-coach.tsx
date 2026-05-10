@@ -41,6 +41,7 @@ import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
 import { calcTM } from "../../lib/program";
 import { PROGRAMS } from "../../lib/programs";
+import { getCurrentFiveRM } from "../../lib/programs/texasMethod";
 import { spacing, borderRadius } from "../../constants/theme";
 
 const ASK_COACH_API_URL = "https://hybrid-rockstar-api.vercel.app/api/ask-coach";
@@ -182,10 +183,16 @@ export default function AskCoachScreen() {
     const currentTMs: Record<string, number> = {};
     if (isTm) {
       // For Texas Method we send 5RMs in the same field — the server is told via
-      // `program` how to label them in its prompt.
-      const fiveRMs = data.programs.texasMethod.fiveRMs;
+      // `program` how to label them in its prompt. 5RM is now derived from the
+      // canonical lifts[name].oneRepMax (Phase 5E single source of truth).
       for (const lift of data.lifts) {
-        if (typeof fiveRMs[lift.name] === "number") currentTMs[lift.name] = fiveRMs[lift.name];
+        const fiveRM = getCurrentFiveRM({
+          lifts: data.lifts,
+          lift: lift.name,
+          precision: data.settings.precision,
+          rounding: data.settings.rounding,
+        });
+        if (fiveRM > 0) currentTMs[lift.name] = fiveRM;
       }
     } else {
       for (const lift of data.lifts) {

@@ -34,7 +34,9 @@ export interface Wendler531State {
 
 export interface TexasMethodState {
   weekIndex: number;
-  fiveRMs: Record<string, number>;
+  // Intensity Day PR-attempt targets per lift. Diverges from oneRepMax-derived
+  // 5RM as the user successfully PRs week over week. Reads fall back to the
+  // derived 5RM when an entry is absent (fresh seed or new lift).
   intensityWeights: Record<string, number>;
   stallCount: Record<string, number>;
   pendingStallChoice: { lift: string; weight: number } | null;
@@ -53,7 +55,6 @@ export const DEFAULT_WENDLER531_STATE: Wendler531State = {
 
 export const DEFAULT_TEXAS_METHOD_STATE: TexasMethodState = {
   weekIndex: 1,
-  fiveRMs: {},
   intensityWeights: {},
   stallCount: {},
   pendingStallChoice: null,

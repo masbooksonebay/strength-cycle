@@ -8,22 +8,13 @@ import { AppData } from "../../lib/store";
 
 const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod"];
 
-// "Seeded" = user has supplied real numbers for this program. If a user
-// onboarded into the OTHER program and is now switching for the first
-// time, we route them through the seed-input screen so the workout view
-// doesn't open with empty/placeholder data.
-function isProgramSeeded(id: ProgramId, data: AppData): boolean {
-  if (id === "texasMethod") {
-    // TM needs at least one main lift's 5RM to render any working set.
-    return Object.keys(data.programs.texasMethod.fiveRMs).length > 0;
-  }
-  if (id === "wendler531") {
-    // 5/3/1 1RMs default to 100 across the board. If any lift differs from
-    // 100, the user has touched the values (whether via onboarding or by
-    // editing in settings) and we treat it as seeded.
-    return data.lifts.some((l) => l.oneRepMax !== 100);
-  }
-  return true;
+// "Seeded" = user has supplied real numbers for this program. After Phase 5E,
+// both programs share lifts[name].oneRepMax as the single source of truth, so
+// the seeded check is identical: any lift with a non-default 1RM means the
+// user has touched the values (via onboarding or Settings edit). 5/3/1 → TM
+// switches no longer require re-entering values when 1RMs are already set.
+function isProgramSeeded(_id: ProgramId, data: AppData): boolean {
+  return data.lifts.some((l) => l.oneRepMax !== 100);
 }
 
 export default function ProgramSwitcher() {
