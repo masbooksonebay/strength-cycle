@@ -34,7 +34,7 @@ export default function ProgramSwitcher() {
     if (id === data.activeProgram) return;
     if (isProgramSeeded(id, data)) {
       switchProgram(id);
-      router.back();
+      router.replace("/(tabs)/settings");
       return;
     }
     const meta = PROGRAMS[id];
@@ -45,7 +45,7 @@ export default function ProgramSwitcher() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Active Program</Text>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close">
+        <TouchableOpacity onPress={() => router.replace("/(tabs)/settings")} accessibilityRole="button" accessibilityLabel="Close">
           <Ionicons name="close" size={28} color={theme.text} />
         </TouchableOpacity>
       </View>

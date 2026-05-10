@@ -20,12 +20,16 @@ function Inner() {
   // Onboarding gate: first-launch users land in /onboarding; users who have
   // completed onboarding (or are migrating from 1.0.2 with existing data —
   // see store.ts loadData backfill) go straight to (tabs).
+  //
+  // We intentionally do NOT bounce completed users away from /onboarding
+  // routes. The Phase 5B in-app program switcher reuses the setup screens
+  // (e.g., /onboarding/wendler531-setup?return=settings) when the user
+  // switches to a program that hasn't been seeded yet. A bounce here would
+  // ping-pong them back to (tabs) before the setup screen can render.
   useEffect(() => {
     const inOnboarding = segments[0] === "onboarding";
     if (!data.onboardingComplete && !inOnboarding) {
       router.replace("/onboarding");
-    } else if (data.onboardingComplete && inOnboarding) {
-      router.replace("/(tabs)");
     }
   }, [data.onboardingComplete, segments, router]);
 
