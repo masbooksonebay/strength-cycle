@@ -165,9 +165,13 @@ function buildTexasMethodSquatHistory(): WorkoutLog[] {
 //   to the literal 3-cycle TM progression and renders better at 1.25 kg
 //   precision.
 // TM: final intensity 97.5, 1RM = 97.5 / 0.85 ≈ 114.7 → 115 kg.
+// startingStrength entry is a placeholder — SS sample-data history + ASC seed
+// flow lands in Wave 5 (screenshot prep). For now buildSeedPatch only branches
+// between 5/3/1 and TM; SS will get its own history builder once it ships.
 const FINAL_SQUAT_1RM_KG: Record<ProgramId, number> = {
   wendler531: 100,
   texasMethod: 115,
+  startingStrength: 100,
 };
 
 export function buildSeedPatch(data: AppData, program: ProgramId): Partial<AppData> {

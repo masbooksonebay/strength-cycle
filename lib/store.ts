@@ -11,9 +11,11 @@ import {
   ProgramId,
   ProgramsState,
   DEFAULT_PROGRAMS_STATE,
+  DEFAULT_STARTING_STRENGTH_STATE,
   isProgramId,
   Wendler531State,
   TexasMethodState,
+  StartingStrengthState,
 } from "./programs";
 
 export interface LiftData {
@@ -195,16 +197,85 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     bodyweight: typeof tmRaw.bodyweight === "number" ? tmRaw.bodyweight : 0,
   };
 
+  // Starting Strength (added in 1.0.4): mirrors the TM migration shape — if the
+  // user has never activated SS, we backfill the default state so the type stays
+  // total (`ProgramsState.startingStrength: StartingStrengthState`, not optional)
+  // without disrupting anything. activeProgram is preserved, so existing 5/3/1
+  // and TM users see no behavioural change.
+  const ssRaw = parsed.programs?.startingStrength ?? {};
+  const ssWorkingWeights =
+    ssRaw.workingWeights && typeof ssRaw.workingWeights === "object"
+      ? ssRaw.workingWeights
+      : DEFAULT_STARTING_STRENGTH_STATE.workingWeights;
+  const ssStallCounts =
+    ssRaw.stallCounts && typeof ssRaw.stallCounts === "object"
+      ? ssRaw.stallCounts
+      : DEFAULT_STARTING_STRENGTH_STATE.stallCounts;
+  const ssIncrementAdjusted =
+    ssRaw.incrementAdjusted && typeof ssRaw.incrementAdjusted === "object"
+      ? ssRaw.incrementAdjusted
+      : DEFAULT_STARTING_STRENGTH_STATE.incrementAdjusted;
+  const startingStrengthState: StartingStrengthState = {
+    lastWorkout:
+      ssRaw.lastWorkout === "A" || ssRaw.lastWorkout === "B" ? ssRaw.lastWorkout : null,
+    workingWeights: {
+      squat:
+        typeof ssWorkingWeights.squat === "number"
+          ? ssWorkingWeights.squat
+          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.squat,
+      press:
+        typeof ssWorkingWeights.press === "number"
+          ? ssWorkingWeights.press
+          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.press,
+      bench:
+        typeof ssWorkingWeights.bench === "number"
+          ? ssWorkingWeights.bench
+          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.bench,
+      deadlift:
+        typeof ssWorkingWeights.deadlift === "number"
+          ? ssWorkingWeights.deadlift
+          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.deadlift,
+    },
+    stallCounts: {
+      squat: typeof ssStallCounts.squat === "number" ? ssStallCounts.squat : 0,
+      press: typeof ssStallCounts.press === "number" ? ssStallCounts.press : 0,
+      bench: typeof ssStallCounts.bench === "number" ? ssStallCounts.bench : 0,
+      deadlift: typeof ssStallCounts.deadlift === "number" ? ssStallCounts.deadlift : 0,
+    },
+    incrementAdjusted: {
+      squat: ssIncrementAdjusted.squat === true,
+      press: ssIncrementAdjusted.press === true,
+      bench: ssIncrementAdjusted.bench === true,
+      deadlift: ssIncrementAdjusted.deadlift === true,
+    },
+    sessionCount: typeof ssRaw.sessionCount === "number" ? ssRaw.sessionCount : 0,
+  };
+
   return {
     activeProgram,
-    programs: { wendler531: wendler531State, texasMethod: texasMethodState },
+    programs: {
+      wendler531: wendler531State,
+      texasMethod: texasMethodState,
+      startingStrength: startingStrengthState,
+    },
   };
 }
 
 function firstLaunchDefaults(): AppData {
   const unit = localeDefaultUnit();
+  // SS workingWeights default to the unit's bar weight (45 lb / 20 kg) so a
+  // first-launch user who picks SS but skips entering numbers gets a sensible
+  // empty-bar starting point in their own unit.
+  const bar = DEFAULT_BAR[unit];
   return {
     ...DEFAULT_DATA,
+    programs: {
+      ...DEFAULT_DATA.programs,
+      startingStrength: {
+        ...DEFAULT_DATA.programs.startingStrength,
+        workingWeights: { squat: bar, press: bar, bench: bar, deadlift: bar },
+      },
+    },
     settings: {
       ...DEFAULT_SETTINGS,
       units: unit,

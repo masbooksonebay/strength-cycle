@@ -6,6 +6,9 @@ import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { ProgramId, PROGRAMS } from "../../lib/programs";
 
+// PROGRAM_LIST is intentionally narrower than ProgramId in 1.0.4 Wave 1a:
+// Starting Strength's onboarding card + setup screen land in Wave 3. The copy
+// below is pre-staged so adding "startingStrength" here is a one-line change.
 const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod"];
 
 const PROGRAM_LONG_COPY: Record<ProgramId, string> = {
@@ -13,6 +16,8 @@ const PROGRAM_LONG_COPY: Record<ProgramId, string> = {
     "Four-week cycles, AMRAP top sets, training max progression. Best for intermediate lifters who want a sustainable long-term program.",
   texasMethod:
     "Volume / Recovery / Intensity weekly structure with 5RM PR attempts. Best for post-novice lifters ready for harder weekly progression.",
+  startingStrength:
+    "Rippetoe's novice linear progression. A/B workout alternation, 3x/week, with per-session increments on every lift. Best for true novices building base strength.",
 };
 
 export default function ProgramSelect() {

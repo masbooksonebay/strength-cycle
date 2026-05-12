@@ -16,6 +16,7 @@ import {
   ProgramsState,
   Wendler531State,
   TexasMethodState,
+  StartingStrengthState,
 } from "./programs";
 
 // When IAP UI is hidden, all gated flags behave as unlocked.
@@ -224,6 +225,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       bodyweight: tm.bodyweight ? convertWeight(tm.bodyweight, from, next, nextPrecision, rounding) : 0,
     };
 
+    // Mirror TM: convert SS workingWeights so an SS user who switches units
+    // keeps consistent state. Stall counters / increment-adjusted flags / etc.
+    // are unitless.
+    const ss = data.programs.startingStrength;
+    const nextSs: StartingStrengthState = {
+      ...ss,
+      workingWeights: {
+        squat: convertWeight(ss.workingWeights.squat, from, next, nextPrecision, rounding),
+        press: convertWeight(ss.workingWeights.press, from, next, nextPrecision, rounding),
+        bench: convertWeight(ss.workingWeights.bench, from, next, nextPrecision, rounding),
+        deadlift: convertWeight(ss.workingWeights.deadlift, from, next, nextPrecision, rounding),
+      },
+    };
+
     const currentPrecision = data.settings.precision;
     const validForNext = precisionOptionsFor(next).includes(currentPrecision);
 
@@ -231,7 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...data,
       lifts,
       workouts,
-      programs: { ...data.programs, texasMethod: nextTm },
+      programs: { ...data.programs, texasMethod: nextTm, startingStrength: nextSs },
       settings: {
         ...data.settings,
         units: next,
