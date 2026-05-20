@@ -47,6 +47,7 @@ interface AppCtx {
   switchProgram: (id: ProgramId) => void;
   updateWendler531State: (updates: Partial<Wendler531State>) => void;
   updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
+  updateStartingStrengthState: (updates: Partial<StartingStrengthState>) => void;
   setOnboardingComplete: (complete: boolean) => void;
   completeOnboarding: (patch: Partial<AppData>) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
@@ -75,6 +76,7 @@ const Ctx = createContext<AppCtx>({
   switchProgram: () => {},
   updateWendler531State: () => {},
   updateTexasMethodState: () => {},
+  updateStartingStrengthState: () => {},
   setOnboardingComplete: () => {},
   completeOnboarding: () => {},
   addExtraSet: () => {},
@@ -169,6 +171,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       programs: {
         ...data.programs,
         texasMethod: { ...data.programs.texasMethod, ...updates },
+      },
+    });
+  }, [data, persist]);
+
+  const updateStartingStrengthState = useCallback((updates: Partial<StartingStrengthState>) => {
+    persist({
+      ...data,
+      programs: {
+        ...data.programs,
+        startingStrength: { ...data.programs.startingStrength, ...updates },
       },
     });
   }, [data, persist]);
@@ -288,6 +300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       switchProgram,
       updateWendler531State,
       updateTexasMethodState,
+      updateStartingStrengthState,
       setOnboardingComplete,
       completeOnboarding,
       addExtraSet,
