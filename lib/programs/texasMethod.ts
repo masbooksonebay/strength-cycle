@@ -3,7 +3,7 @@
 // alternate week-by-week as the main upper-body lift.
 
 import { roundToPrecision, RoundingMode, WeightUnit } from "../plates";
-import { ProgramMetadata, ProgramSet, TexasMethodState } from "./types";
+import { ProgramMetadata, ProgramSet, TexasMethodState, TMStallLiftKey } from "./types";
 
 export const TEXAS_METHOD_METADATA: ProgramMetadata = {
   id: "texasMethod",
@@ -212,13 +212,127 @@ export function calcE1RM(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30));
 }
 
-// Apply progression after a successful Intensity Day.
+// ─── Wave 2: TM stall state machine ──────────────────────────────────────────
+//
+// 1.0.3 fired the stall prompt as an ephemeral Alert.alert from
+// TexasMethodWorkoutScreen the moment AMRAP reps < 5 were saved; the legacy
+// `pendingStallChoice` field existed but was never actually written by the
+// live screen flow (only by applyIntensityDayProgression's stall branch,
+// which the screen bypassed). 1.0.4 Wave 2 introduces:
+//
+//   - pendingStallResolution (richer payload: triggeredOn + amrapReps)
+//     as the persisted source-of-truth, written by detectStallOnWorkoutComplete.
+//   - resolveStallChoice, the single resolution funnel — clears the persistent
+//     fields, bumps stallCount for tracking, and applies the user's choice.
+//
+// The legacy pendingStallChoice field is kept mirrored on both writes so any
+// outside consumer reading the old shape sees the same trigger.
+//
+// User-facing UI in Wave 2 is unchanged (same Alert.alert with same 3 buttons).
+// Wave 3 will derive a modal from pendingStallResolution so that killing the
+// app mid-stall no longer loses the prompt.
+
+// Bidirectional mapping between TM canonical lift names ("Bench Press") and
+// the lowercase stall-machine keys ("bench") used by pendingStallResolution.
+const TM_LIFT_NAME_TO_KEY: Record<TmLift, TMStallLiftKey> = {
+  Squat: "squat",
+  "Bench Press": "bench",
+  Deadlift: "deadlift",
+  "Overhead Press": "press",
+};
+
+const TM_LIFT_KEY_TO_NAME: Record<TMStallLiftKey, TmLift> = {
+  squat: "Squat",
+  bench: "Bench Press",
+  deadlift: "Deadlift",
+  press: "Overhead Press",
+};
+
+// Write the persistent stall record. The legacy pendingStallChoice is mirrored
+// so any caller still reading the old shape sees the same trigger.
+export function detectStallOnWorkoutComplete(args: {
+  state: TexasMethodState;
+  lift: TmLift;
+  currentWeight: number;
+  amrapReps: number;
+  triggeredOn?: string; // ISO timestamp; defaults to now
+}): TexasMethodState {
+  const { state, lift, currentWeight, amrapReps } = args;
+  const triggeredOn = args.triggeredOn ?? new Date().toISOString();
+  return {
+    ...state,
+    pendingStallResolution: {
+      lift: TM_LIFT_NAME_TO_KEY[lift],
+      triggeredOn,
+      currentWeight,
+      amrapReps,
+    },
+    pendingStallChoice: { lift, weight: currentWeight }, // legacy mirror
+  };
+}
+
+// New choice vocabulary for Wave 2. The legacy "cut10" is renamed "cutVolume"
+// to match the user-facing label; the legacy 'repeat'/'deload' names carry over.
+export type TMStallChoice = "repeat" | "cutVolume" | "deload";
+
+// Resolve a pending stall. Reads currentWeight from state.pendingStallResolution
+// (set by detectStallOnWorkoutComplete) so callers do not need to re-derive it.
+// On every resolution path, stallCount[lift] is incremented for history.
+// No-op if no resolution is pending.
+//
+// Behavior per choice (preserves 1.0.3 simple-alert semantics exactly):
+//   - repeat:     clears the pending record; user re-attempts at the same weight.
+//   - cutVolume:  clears the pending record. NOTE: 1.0.3 shipped the button but
+//                 the code path was a no-op — the Volume Day reduction was
+//                 never wired up. Wave 2 preserves that behavior; Wave 3 may
+//                 give the button real meaning by reducing Volume Day weight.
+//   - deload:     intensityWeights[lift] = currentWeight × 0.85, then clears.
+export function resolveStallChoice(args: {
+  state: TexasMethodState;
+  choice: TMStallChoice;
+  precision: number;
+  rounding: RoundingMode;
+}): TexasMethodState {
+  const { state, choice, precision, rounding } = args;
+  const pending = state.pendingStallResolution;
+  if (!pending) return state; // nothing to resolve
+
+  const liftName = TM_LIFT_KEY_TO_NAME[pending.lift];
+  const bumpedStallCount = {
+    ...state.stallCount,
+    [liftName]: (state.stallCount[liftName] ?? 0) + 1,
+  };
+
+  // Clear both the new and legacy pending fields together.
+  const cleared = {
+    ...state,
+    stallCount: bumpedStallCount,
+    pendingStallResolution: null,
+    pendingStallChoice: null,
+  };
+
+  if (choice === "repeat") return cleared;
+  if (choice === "cutVolume") return cleared; // 1.0.3-preserved no-op
+
+  // deload: 85% of the stalled intensity weight; will progress back up week-over-week.
+  const deloadWeight = roundToPrecision(pending.currentWeight * 0.85, precision, rounding);
+  return {
+    ...cleared,
+    intensityWeights: { ...cleared.intensityWeights, [liftName]: deloadWeight },
+  };
+}
+
+// Apply progression after an Intensity Day workout. Consolidated in Wave 2 so
+// the stall branch routes through detectStallOnWorkoutComplete (persists the
+// pendingStallResolution) instead of writing the legacy field directly.
 // - On a successful squat PR (≥5 reps): squat 5RM goes up by `defaultProgressionIncrement`
 // - On a successful main-upper-body PR (≥5 reps): that lift's 5RM goes up by `defaultProgressionIncrement`.
 //   Off-week upper body (the secondary) waits until next Intensity Day.
 // - Deadlift advances every week regardless (it's logged on Volume Day).
 //
-// Returns the next week's TexasMethodState. The caller increments `weekIndex` separately.
+// Returns the next week's TexasMethodState plus a `stalled` flag the caller
+// uses to decide whether to surface the resolution prompt. The caller still
+// increments `weekIndex` separately.
 export function applyIntensityDayProgression(args: {
   state: TexasMethodState;
   lift: TmLift;
@@ -233,13 +347,13 @@ export function applyIntensityDayProgression(args: {
   const stalled = reps < 5;
 
   if (stalled) {
-    const nextStallCount = { ...state.stallCount, [lift]: (state.stallCount[lift] ?? 0) + 1 };
     return {
-      state: {
-        ...state,
-        stallCount: nextStallCount,
-        pendingStallChoice: { lift, weight: currentIntensity },
-      },
+      state: detectStallOnWorkoutComplete({
+        state,
+        lift,
+        currentWeight: currentIntensity,
+        amrapReps: reps,
+      }),
       stalled: true,
     };
   }
@@ -251,46 +365,11 @@ export function applyIntensityDayProgression(args: {
       intensityWeights: { ...state.intensityWeights, [lift]: nextIntensity },
       stallCount: { ...state.stallCount, [lift]: 0 },
       pendingStallChoice: null,
+      pendingStallResolution: null,
     },
     stalled: false,
   };
 }
-
-// Stall response options the user picks from the alert prompt.
-//   "repeat"  → next week prescribes the same intensity weight; user re-attempts.
-//   "cut10"   → next week's Volume Day is reduced by 10% (intensity stays same).
-//   "deload"  → next week starts at 85% of the stalled intensity weight, then progresses.
-export type StallResponse = "repeat" | "cut10" | "deload";
-
-export function applyStallResponse(args: {
-  state: TexasMethodState;
-  lift: TmLift;
-  response: StallResponse;
-  precision: number;
-  rounding: RoundingMode;
-  // Stalled intensity baseline supplied by caller (same source as the PR
-  // attempt that just stalled — intensityWeights[lift] ?? derived 5RM).
-  stalledWeight: number;
-}): TexasMethodState {
-  const { state, lift, response, precision, rounding, stalledWeight } = args;
-
-  if (response === "repeat") {
-    return { ...state, pendingStallChoice: null };
-  }
-  if (response === "cut10") {
-    return { ...state, pendingStallChoice: null };
-  }
-  // deload: 85% of stalled intensity, will progress back up over 2-3 weeks.
-  const deloadWeight = roundToPrecision(stalledWeight * 0.85, precision, rounding);
-  return {
-    ...state,
-    intensityWeights: { ...state.intensityWeights, [lift]: deloadWeight },
-    pendingStallChoice: null,
-  };
-}
-
-// Volume Day cut multiplier when stall response was "cut10".
-export const VOLUME_CUT_MULTIPLIER = 0.9;
 
 // Seed initial Texas Method state. Reads each TM lift's oneRepMax from the
 // canonical lifts array and seeds intensityWeights to the derived 5RM so the
@@ -318,6 +397,7 @@ export function seedTexasMethodState(args: {
     intensityWeights,
     stallCount,
     pendingStallChoice: null,
+    pendingStallResolution: null,
     powerCleanEnabled,
     bodyweight,
   };

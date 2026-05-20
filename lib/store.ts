@@ -184,6 +184,25 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
   };
 
   const tmRaw = parsed.programs?.texasMethod ?? {};
+  // 1.0.4 Wave 2 — pendingStallResolution is the new persisted source-of-truth
+  // for an unresolved stall. Existing 1.0.3 / Wave 1 users have no such field;
+  // we default to null (no pending stall). All other TM fields are preserved
+  // EXACTLY as written so any mid-stall state, intensity history, etc. survives.
+  const tmPendingStallResolutionRaw = tmRaw.pendingStallResolution;
+  const tmPendingStallResolution =
+    tmPendingStallResolutionRaw &&
+    typeof tmPendingStallResolutionRaw === "object" &&
+    typeof tmPendingStallResolutionRaw.lift === "string" &&
+    typeof tmPendingStallResolutionRaw.triggeredOn === "string" &&
+    typeof tmPendingStallResolutionRaw.currentWeight === "number" &&
+    typeof tmPendingStallResolutionRaw.amrapReps === "number"
+      ? {
+          lift: tmPendingStallResolutionRaw.lift,
+          triggeredOn: tmPendingStallResolutionRaw.triggeredOn,
+          currentWeight: tmPendingStallResolutionRaw.currentWeight,
+          amrapReps: tmPendingStallResolutionRaw.amrapReps,
+        }
+      : null;
   const texasMethodState: TexasMethodState = {
     weekIndex: typeof tmRaw.weekIndex === "number" ? tmRaw.weekIndex : 1,
     intensityWeights:
@@ -193,6 +212,7 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
       tmRaw.pendingStallChoice && typeof tmRaw.pendingStallChoice === "object"
         ? tmRaw.pendingStallChoice
         : null,
+    pendingStallResolution: tmPendingStallResolution as TexasMethodState["pendingStallResolution"],
     powerCleanEnabled: typeof tmRaw.powerCleanEnabled === "boolean" ? tmRaw.powerCleanEnabled : false,
     bodyweight: typeof tmRaw.bodyweight === "number" ? tmRaw.bodyweight : 0,
   };
@@ -215,6 +235,22 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     ssRaw.incrementAdjusted && typeof ssRaw.incrementAdjusted === "object"
       ? ssRaw.incrementAdjusted
       : DEFAULT_STARTING_STRENGTH_STATE.incrementAdjusted;
+  // 1.0.4 Wave 2 — four new SS fields. Wave 1 users (commit c4b1d1c) have none
+  // of these in their persisted state; default to zeros / false. Existing
+  // Wave 1 fields above are preserved as-is so a user mid-progression sees no
+  // behavioural change on upgrade — just an additive state-machine layer.
+  const ssConsecutiveStallsRaw =
+    ssRaw.consecutiveStalls && typeof ssRaw.consecutiveStalls === "object"
+      ? ssRaw.consecutiveStalls
+      : DEFAULT_STARTING_STRENGTH_STATE.consecutiveStalls;
+  const ssRepSchemeStageRaw =
+    ssRaw.repSchemeStage && typeof ssRaw.repSchemeStage === "object"
+      ? ssRaw.repSchemeStage
+      : DEFAULT_STARTING_STRENGTH_STATE.repSchemeStage;
+  const ssDeloadedAtCurrentStageRaw =
+    ssRaw.deloadedAtCurrentStage && typeof ssRaw.deloadedAtCurrentStage === "object"
+      ? ssRaw.deloadedAtCurrentStage
+      : DEFAULT_STARTING_STRENGTH_STATE.deloadedAtCurrentStage;
   const startingStrengthState: StartingStrengthState = {
     lastWorkout:
       ssRaw.lastWorkout === "A" || ssRaw.lastWorkout === "B" ? ssRaw.lastWorkout : null,
@@ -249,6 +285,27 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
       deadlift: ssIncrementAdjusted.deadlift === true,
     },
     sessionCount: typeof ssRaw.sessionCount === "number" ? ssRaw.sessionCount : 0,
+    consecutiveStalls: {
+      squat: typeof ssConsecutiveStallsRaw.squat === "number" ? ssConsecutiveStallsRaw.squat : 0,
+      press: typeof ssConsecutiveStallsRaw.press === "number" ? ssConsecutiveStallsRaw.press : 0,
+      bench: typeof ssConsecutiveStallsRaw.bench === "number" ? ssConsecutiveStallsRaw.bench : 0,
+      deadlift:
+        typeof ssConsecutiveStallsRaw.deadlift === "number" ? ssConsecutiveStallsRaw.deadlift : 0,
+    },
+    repSchemeStage: {
+      squat: typeof ssRepSchemeStageRaw.squat === "number" ? ssRepSchemeStageRaw.squat : 0,
+      press: typeof ssRepSchemeStageRaw.press === "number" ? ssRepSchemeStageRaw.press : 0,
+      bench: typeof ssRepSchemeStageRaw.bench === "number" ? ssRepSchemeStageRaw.bench : 0,
+      deadlift:
+        typeof ssRepSchemeStageRaw.deadlift === "number" ? ssRepSchemeStageRaw.deadlift : 0,
+    },
+    deloadedAtCurrentStage: {
+      squat: ssDeloadedAtCurrentStageRaw.squat === true,
+      press: ssDeloadedAtCurrentStageRaw.press === true,
+      bench: ssDeloadedAtCurrentStageRaw.bench === true,
+      deadlift: ssDeloadedAtCurrentStageRaw.deadlift === true,
+    },
+    graduationSuggested: ssRaw.graduationSuggested === true,
   };
 
   return {

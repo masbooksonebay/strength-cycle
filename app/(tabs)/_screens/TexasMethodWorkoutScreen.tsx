@@ -19,12 +19,13 @@ import {
   TM_LIFTS,
   TmDay,
   TmLift,
+  TMStallChoice,
   advanceWeekIndex,
   applyIntensityDayProgression,
-  applyStallResponse,
   getCurrentFiveRM,
   getDaySets,
   mainUpperLiftForWeek,
+  resolveStallChoice,
 } from "../../../lib/programs/texasMethod";
 import { spacing, borderRadius } from "../../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../../components/TimerPill";
@@ -101,21 +102,16 @@ export default function TexasMethodWorkoutScreen() {
     setLogNotes("");
   };
 
-  const handleStallResponse = (lift: TmLift, response: "repeat" | "cut10" | "deload") => {
-    const fallbackFiveRM = getCurrentFiveRM({
-      lifts: data.lifts,
-      lift,
-      precision: s.precision,
-      rounding: s.rounding,
-    });
-    const stalledWeight = tm.intensityWeights[lift] ?? fallbackFiveRM;
-    const next = applyStallResponse({
+  // Wave 2: the stall prompt's three buttons now funnel through
+  // resolveStallChoice, which reads currentWeight from state.pendingStallResolution
+  // (set during applyIntensityDayProgression's stall branch). The visual UI is
+  // unchanged — same Alert.alert, same three options.
+  const handleStallResponse = (choice: TMStallChoice) => {
+    const next = resolveStallChoice({
       state: tm,
-      lift,
-      response,
+      choice,
       precision: s.precision,
       rounding: s.rounding,
-      stalledWeight,
     });
     updateTexasMethodState(next);
   };
@@ -158,35 +154,36 @@ export default function TexasMethodWorkoutScreen() {
     // Program-side progression (skip for Power Clean — accessory only).
     if (lift !== "PowerClean") {
       if (day === "intensity" && (lift === "Squat" || lift === mainUpper)) {
-        if (logReps < 5) {
-          // Stall — surface the three-button choice. Phase 5C ships only the
-          // simple alert; full stall state machine ships in 1.0.4.
+        // Wave 2: applyIntensityDayProgression handles BOTH paths — on stall
+        // it persists pendingStallResolution; on success it advances the
+        // intensity weight. We then read the `stalled` flag to fire the
+        // (visually unchanged) Alert.alert prompt for resolution.
+        const fallbackFiveRM = getCurrentFiveRM({
+          lifts: data.lifts,
+          lift,
+          precision: s.precision,
+          rounding: s.rounding,
+        });
+        const currentIntensity = tm.intensityWeights[lift] ?? fallbackFiveRM;
+        const result = applyIntensityDayProgression({
+          state: tm,
+          lift,
+          reps: logReps,
+          units,
+          currentIntensity,
+        });
+        updateTexasMethodState(result.state);
+        if (result.stalled) {
           Alert.alert(
             `${lift} stall`,
             `You logged ${logReps} reps on the work set. Choose how to handle this stall.`,
             [
-              { text: "Repeat next week", onPress: () => handleStallResponse(lift, "repeat") },
-              { text: "Reduce volume 10%", onPress: () => handleStallResponse(lift, "cut10") },
-              { text: "Deload to 85%", onPress: () => handleStallResponse(lift, "deload"), style: "destructive" },
+              { text: "Repeat next week", onPress: () => handleStallResponse("repeat") },
+              { text: "Reduce volume 10%", onPress: () => handleStallResponse("cutVolume") },
+              { text: "Deload to 85%", onPress: () => handleStallResponse("deload"), style: "destructive" },
             ],
             { cancelable: false },
           );
-        } else {
-          const fallbackFiveRM = getCurrentFiveRM({
-            lifts: data.lifts,
-            lift,
-            precision: s.precision,
-            rounding: s.rounding,
-          });
-          const currentIntensity = tm.intensityWeights[lift] ?? fallbackFiveRM;
-          const result = applyIntensityDayProgression({
-            state: tm,
-            lift,
-            reps: logReps,
-            units,
-            currentIntensity,
-          });
-          updateTexasMethodState(result.state);
         }
       }
       // Phase 5E: deadlift no longer auto-progresses on Volume Day. With 1RM as

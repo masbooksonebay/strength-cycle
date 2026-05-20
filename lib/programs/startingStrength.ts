@@ -14,7 +14,7 @@
 // TODO(1.0.6+): optional Power Clean substitution on Workout B (state flag +
 // prescription branch). Not in 1.0.4.
 
-import { WeightUnit } from "../plates";
+import { WeightUnit, roundToPrecision } from "../plates";
 import { ProgramMetadata, ProgramSet, StartingStrengthState } from "./types";
 
 export const STARTING_STRENGTH_METADATA: ProgramMetadata = {
@@ -91,13 +91,29 @@ function workSet(weight: number, reps: number): ProgramSet {
   return { percentage: 100, reps, isWarmup: false, isAmrap: false, weight };
 }
 
-// Build the prescription for a single lift. Squat and the upper-body lift are
-// 3×5; Deadlift is 1×5 (it's the lift that gets the most weight added per
-// session and is intentionally low-volume in the novice phase).
-function liftPrescription(lift: SSLift, weight: number): SSLiftPrescription {
+// Rep-scheme-stage → reps-per-set. Wave 2 introduces 5x3 and 5x1 stages that
+// fire when a lift can no longer progress at the current rep scheme.
+// Canonical Rippetoe terminology preserves the "5x" label (lineage from
+// sets-of-5); the actual set count is 3 for Squat/Press/Bench, 1 for Deadlift.
+export const SS_REP_SCHEME_STAGES = [5, 3, 1] as const;
+export type SSRepSchemeStage = 0 | 1 | 2;
+
+// User-facing label for a stage. Wave 3 UI consumes this; we keep it close to
+// the prescription helper so the literal stays in sync with the reps array.
+export function repSchemeStageLabel(stage: number): string {
+  if (stage === 1) return "5x3";
+  if (stage === 2) return "5x1";
+  return "5x5";
+}
+
+// Build the prescription for a single lift at a given rep-scheme stage. Squat
+// and the upper-body lift are 3 sets of N reps; Deadlift is 1 set of N reps
+// (low-volume novice canonical — preserved across all stages).
+function liftPrescription(lift: SSLift, weight: number, stage: number): SSLiftPrescription {
   const setCount = lift === "deadlift" ? 1 : 3;
+  const reps = SS_REP_SCHEME_STAGES[stage] ?? SS_REP_SCHEME_STAGES[0];
   const sets: ProgramSet[] = [];
-  for (let i = 0; i < setCount; i++) sets.push(workSet(weight, 5));
+  for (let i = 0; i < setCount; i++) sets.push(workSet(weight, reps));
   return { lift, sets };
 }
 
@@ -105,7 +121,9 @@ export function getWorkoutPrescription(
   workout: SSWorkout,
   state: StartingStrengthState,
 ): SSWorkoutPrescription {
-  return WORKOUT_LIFTS[workout].map((lift) => liftPrescription(lift, state.workingWeights[lift]));
+  return WORKOUT_LIFTS[workout].map((lift) =>
+    liftPrescription(lift, state.workingWeights[lift], state.repSchemeStage[lift]),
+  );
 }
 
 // Per-Rippetoe canonical increments. Squat/Press/Bench follow a two-stage
@@ -151,12 +169,39 @@ export function getProgressionIncrement(
     : PRE_STALL_INCREMENT[lift][unit];
 }
 
-// Apply the result of a completed workout: lifts that hit their target rep count
-// get their working weight bumped by the appropriate increment for next session;
-// lifts that missed have their stall counter incremented and (on the FIRST stall
-// only) flip incrementAdjusted to true so subsequent sessions use the smaller
-// jump. Weight is NOT reset on stall — actual deload handling lives in Wave 1b's
-// shared multi-program stall state machine.
+// Deload rounding: nearest 5 lb / 2.5 kg. Coarser than the user's general
+// precision setting so a deload lands on round plate-friendly weights.
+const SS_DELOAD_ROUNDING: Record<WeightUnit, number> = { lb: 5, kg: 2.5 };
+const SS_DELOAD_MULTIPLIER = 0.9; // 10% off — Rippetoe canonical
+
+// Apply the result of a completed workout. Wave 2 implements the full Rippetoe
+// novice stall state machine, per-lift and independent:
+//
+//   RULE A — first-ever stall on this lift (consecutiveStalls hits 1 and the
+//     pre-stall "incrementAdjusted" flag has never flipped before): we flip
+//     the flag, dropping subsequent progressions to the smaller post-stall
+//     increment. Weight unchanged.
+//
+//   RULE B — three consecutive stalls on the same lift:
+//     - At repSchemeStage 0 or 1 (5x5 or 5x3):
+//         · First three-strike cycle at this stage (deloadedAtCurrentStage=false)
+//           → DELOAD: workingWeight *= 0.9 (round to 5 lb / 2.5 kg),
+//             deloadedAtCurrentStage flips to true, consecutiveStalls resets.
+//         · Second three-strike cycle (deloadedAtCurrentStage=true) → drop the
+//           rep scheme: 5x5 → 5x3 or 5x3 → 5x1. deloadedAtCurrentStage resets
+//           for the fresh stage. Weight unchanged. consecutiveStalls resets.
+//     - At repSchemeStage 2 (5x1): graduate trigger — set graduationSuggested
+//       so Wave 3's modal can suggest Texas Method. We also flip
+//       deloadedAtCurrentStage[lift]=true at stage 2 so the cross-state
+//       "5x1 stall cluster on a second lift" check has a flag to read.
+//
+//   Anything else (consecutiveStalls === 2, etc.) just counts. The user retries
+//   the same weight next session.
+//
+// After processing every lift in the result, we also re-evaluate graduation
+// across lifts: if two or more lifts are at stage 2 with the cross-state flag
+// set, graduationSuggested is forced true (idempotent — covers the case where
+// the user dismissed the prompt after lift A and lift B subsequently joins).
 export function completeWorkout(
   state: StartingStrengthState,
   result: SSWorkoutResult,
@@ -165,21 +210,72 @@ export function completeWorkout(
   const nextWorkingWeights = { ...state.workingWeights };
   const nextStallCounts = { ...state.stallCounts };
   const nextIncrementAdjusted = { ...state.incrementAdjusted };
+  const nextConsecutiveStalls = { ...state.consecutiveStalls };
+  const nextRepSchemeStage = { ...state.repSchemeStage };
+  const nextDeloadedAtCurrentStage = { ...state.deloadedAtCurrentStage };
+  let nextGraduationSuggested = state.graduationSuggested;
 
   for (const liftResult of result.lifts) {
     const { lift, repsCompleted, targetReps } = liftResult;
     const hit = repsCompleted >= targetReps;
+
     if (hit) {
+      // Success: reset consecutive stall counter, apply increment for next session.
+      nextConsecutiveStalls[lift] = 0;
       const increment = getProgressionIncrement(lift, state, unit);
       nextWorkingWeights[lift] = state.workingWeights[lift] + increment;
-    } else {
-      const priorStalls = state.stallCounts[lift];
-      nextStallCounts[lift] = priorStalls + 1;
-      // Rippetoe canonical "first stall drops the jump" mechanic — only flip on
-      // the 0→1 transition. Subsequent stalls keep the flag true.
-      if (priorStalls === 0) nextIncrementAdjusted[lift] = true;
+      continue;
     }
+
+    // Miss: bump both total (Wave 1 history) and consecutive (Wave 2 trigger) stall counters.
+    nextStallCounts[lift] = state.stallCounts[lift] + 1;
+    nextConsecutiveStalls[lift] = state.consecutiveStalls[lift] + 1;
+    const consec = nextConsecutiveStalls[lift];
+
+    // RULE A — first stall ever on this lift drops the per-session increment.
+    if (consec === 1 && !state.incrementAdjusted[lift]) {
+      nextIncrementAdjusted[lift] = true;
+      continue;
+    }
+
+    // RULE B — three consecutive stalls trigger structural transitions.
+    if (consec === 3) {
+      const stage = state.repSchemeStage[lift];
+      if (stage < 2) {
+        if (!state.deloadedAtCurrentStage[lift]) {
+          // RULE B-i — first three-strike cycle at this stage: deload weight.
+          nextWorkingWeights[lift] = roundToPrecision(
+            state.workingWeights[lift] * SS_DELOAD_MULTIPLIER,
+            SS_DELOAD_ROUNDING[unit],
+          );
+          nextDeloadedAtCurrentStage[lift] = true;
+          nextConsecutiveStalls[lift] = 0;
+        } else {
+          // RULE B-ii — already deloaded at this stage: drop the rep scheme.
+          nextRepSchemeStage[lift] = stage + 1;
+          nextDeloadedAtCurrentStage[lift] = false; // fresh stage = fresh deload chance
+          nextConsecutiveStalls[lift] = 0;
+          // Weight unchanged — lower rep volume buys the user another shot.
+        }
+      } else {
+        // RULE B-iii — stalled out at 5x1: suggest graduation. The flag on
+        // deloadedAtCurrentStage at stage 2 is a "5x1 stall cluster fired"
+        // marker for the cross-state two-lift check below.
+        nextGraduationSuggested = true;
+        nextDeloadedAtCurrentStage[lift] = true;
+        nextConsecutiveStalls[lift] = 0;
+      }
+    }
+    // consec === 2 (or any other intermediate count): no rule, retry next session.
   }
+
+  // Cross-state: a 5x1 stall cluster recorded on ≥2 distinct lifts → graduate.
+  // Re-fires graduationSuggested even if the user previously dismissed, because
+  // a second lift hitting the wall is fresh signal that LP is exhausted.
+  const fiveXOneClusterCount = SS_LIFTS.filter(
+    (l) => nextRepSchemeStage[l] === 2 && nextDeloadedAtCurrentStage[l],
+  ).length;
+  if (fiveXOneClusterCount >= 2) nextGraduationSuggested = true;
 
   return {
     lastWorkout: result.workout,
@@ -187,7 +283,24 @@ export function completeWorkout(
     stallCounts: nextStallCounts,
     incrementAdjusted: nextIncrementAdjusted,
     sessionCount: state.sessionCount + 1,
+    consecutiveStalls: nextConsecutiveStalls,
+    repSchemeStage: nextRepSchemeStage,
+    deloadedAtCurrentStage: nextDeloadedAtCurrentStage,
+    graduationSuggested: nextGraduationSuggested,
   };
+}
+
+// Convenience reader. Wave 3 modal callers can read state.graduationSuggested
+// directly; this helper keeps the surface uniform with dismissGraduationPrompt.
+export function checkGraduationTrigger(state: StartingStrengthState): boolean {
+  return state.graduationSuggested;
+}
+
+// Wave 3 calls this when the user dismisses the Graduate-to-Texas-Method modal.
+// Clears the flag but leaves deloadedAtCurrentStage / repSchemeStage intact so
+// the cross-state "second lift" trigger can still re-fire later if warranted.
+export function dismissGraduationPrompt(state: StartingStrengthState): StartingStrengthState {
+  return { ...state, graduationSuggested: false };
 }
 
 // Seed a fresh Starting Strength state. Caller supplies the user's entered
@@ -206,5 +319,9 @@ export function initStartingStrengthState(startingWeights: {
     stallCounts: { squat: 0, press: 0, bench: 0, deadlift: 0 },
     incrementAdjusted: { squat: false, press: false, bench: false, deadlift: false },
     sessionCount: 0,
+    consecutiveStalls: { squat: 0, press: 0, bench: 0, deadlift: 0 },
+    repSchemeStage: { squat: 0, press: 0, bench: 0, deadlift: 0 },
+    deloadedAtCurrentStage: { squat: false, press: false, bench: false, deadlift: false },
+    graduationSuggested: false,
   };
 }
