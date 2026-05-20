@@ -69,65 +69,51 @@ export interface TexasMethodState {
   bodyweight: number;
 }
 
-// Per-lift counter object used for several SS fields below. Defined once so the
-// SS state shape stays compact when Wave 2 added three new such fields.
-export interface SSPerLiftNumber {
-  squat: number;
-  press: number;
-  bench: number;
-  deadlift: number;
-}
+// Starting Strength — Rippetoe novice linear progression (canonical, 1.0.4 SS
+// rebuild). Replaces the pre-rebuild Wave 1a/2 shape, which layered Stronglifts
+// mechanics (5x5 → 5x3 → 5x1 rep-scheme drops, a three-consecutive-stall deload
+// rule, in-app "graduation") onto SS. The canonical model: three published
+// phases, per-lift linear progression with a two-consecutive-failure → 10%
+// deload rule, and a user-selectable Workout B pull movement. Advancing past
+// novice LP is a manual switch to Texas Method or 5/3/1 — no in-app graduation.
+export type SSLiftKey =
+  | "squat"
+  | "press"
+  | "bench"
+  | "deadlift"
+  | "row"
+  | "powerClean"
+  | "chinUp";
 
-export interface SSPerLiftBool {
-  squat: boolean;
-  press: boolean;
-  bench: boolean;
-  deadlift: boolean;
-}
+// Workout B's third movement: Bent-Over Row (default) or Power Clean. Stored as
+// its own preference string — distinct from the `row` / `powerClean` SSLiftKey
+// values it selects between — so the Settings toggle has a stable vocabulary.
+export type SSPullVariant = "row" | "power_clean";
 
-// Starting Strength — Rippetoe novice linear progression. State is per-lift and
-// history-driven (no week index): the only "where am I" signal is `lastWorkout`,
-// which determines whether the next session is A or B.
-//
-// Wave 2 adds the full multi-program stall state machine: three-strikes deload,
-// rep-scheme drops (5x5 → 5x3 → 5x1), and a `graduationSuggested` flag the
-// Wave 3 UI reads to surface the Graduate-to-Texas-Method modal.
 export interface StartingStrengthState {
-  // Last workout completed; null on first session before any workout.
+  // Published Rippetoe phase: 1 = Ramp-up, 2 = Main Phase, 3 = Advanced Novice.
+  currentPhase: 1 | 2 | 3;
+  // Sessions completed within the current phase. Drives the automatic
+  // Phase 1 → 2 transition (fires at 9 completed sessions, ~3 weeks).
+  phaseSessionCount: number;
+  // Workout B pull-movement preference. Defaults to "row"; user toggles in Settings.
+  pullVariantPreference: SSPullVariant;
+  // Current working weight per lift, in the user's configured unit.
+  workingWeights: Record<SSLiftKey, number>;
+  // Per-lift consecutive failed sessions (0/1/2). Reaching 2 triggers a 10%
+  // deload on that lift only; resets to 0 on a successful session or a deload.
+  consecutiveFailures: Record<SSLiftKey, number>;
+  // Per-lift lifetime count of deloads applied (history / insight).
+  deloadHistory: Record<SSLiftKey, number>;
+  // Per-lift microloading flag — true after that lift's first deload, switching
+  // its per-session jump from the full to the reduced increment.
+  microloadingActive: Record<SSLiftKey, boolean>;
+  // Last workout completed; null before the first session. Drives A/B alternation.
   lastWorkout: "A" | "B" | null;
-  // Current working weights per lift (in user's configured unit).
-  workingWeights: SSPerLiftNumber;
-  // Per-lift total stall counter (history; Wave 1 mechanic — preserved).
-  stallCounts: SSPerLiftNumber;
-  // Per-lift flag — true after first stall, switching to the smaller "post-stall"
-  // increment for subsequent sessions (Rippetoe canonical: first stall drops the jump).
-  incrementAdjusted: SSPerLiftBool;
-  // Total sessions completed under SS — drives Deadlift's early-phase taper
-  // (first 6 sessions get +15 lb / +7.5 kg, then drops to +10 / +5 even with no stall).
+  // Total sessions completed across all phases.
   sessionCount: number;
-
-  // Wave 2 — per-lift consecutive stall counter. Resets to 0 on a successful
-  // session at that lift's target reps. The 3 → trigger threshold is the
-  // canonical Rippetoe "three strikes" deload rule.
-  consecutiveStalls: SSPerLiftNumber;
-  // Wave 2 — per-lift rep-scheme stage. 0 = 5x5 (canonical "5x5"), 1 = 5x3,
-  // 2 = 5x1. Independent per lift; advances on the second three-strike cycle
-  // at a given stage. The "5" in 5x3 / 5x1 is historical Rippetoe lineage —
-  // the actual sets prescribed are 3 sets of N reps for Squat/Press/Bench
-  // (1 set for Deadlift).
-  repSchemeStage: SSPerLiftNumber;
-  // Wave 2 — has a deload already occurred at the lift's current rep-scheme
-  // stage? On the first three-strike cycle at a stage we deload (10% off,
-  // round to nearest 5 lb / 2.5 kg); on the second we drop rep-scheme. Resets
-  // to false when the stage advances (fresh stage gets its own deload chance).
-  // At stage 2 (5x1) this flag is also set when the graduate trigger fires, so
-  // the "5x1 stall cluster on a second lift" cross-state check can read it.
-  deloadedAtCurrentStage: SSPerLiftBool;
-  // Wave 2 — set true when (a) three consecutive stalls hit at repSchemeStage 2
-  // on any single lift, or (b) a 5x1 stall cluster has been recorded on at
-  // least two distinct lifts. Wave 3 reads this flag to render the
-  // Graduate-to-Texas-Method modal; dismissGraduationPrompt clears it.
-  graduationSuggested: boolean;
+  // ISO date the program was started; "" until set at onboarding.
+  startDate: string;
 }
 
 export interface ProgramsState {
@@ -150,20 +136,29 @@ export const DEFAULT_TEXAS_METHOD_STATE: TexasMethodState = {
   bodyweight: 0,
 };
 
-// Empty-bar starting weights are the same as the user's bar weight; we default
-// to 45 lb (Olympic bar) here, and the SS setup screen overwrites these with the
-// user's entered starting weights when they activate the program. Existing 1.0.3
-// users who never select SS see this default state but never read from it.
+// SS workingWeights default to 0 — the user enters real starting weights at
+// onboarding (which also sets startDate). The store migration resets any
+// pre-rebuild SS state to this default: the old shape is structurally
+// incompatible and SS shipped no UI, so no user holds meaningful SS progress.
 export const DEFAULT_STARTING_STRENGTH_STATE: StartingStrengthState = {
+  currentPhase: 1,
+  phaseSessionCount: 0,
+  pullVariantPreference: "row",
+  workingWeights: { squat: 0, press: 0, bench: 0, deadlift: 0, row: 0, powerClean: 0, chinUp: 0 },
+  consecutiveFailures: { squat: 0, press: 0, bench: 0, deadlift: 0, row: 0, powerClean: 0, chinUp: 0 },
+  deloadHistory: { squat: 0, press: 0, bench: 0, deadlift: 0, row: 0, powerClean: 0, chinUp: 0 },
+  microloadingActive: {
+    squat: false,
+    press: false,
+    bench: false,
+    deadlift: false,
+    row: false,
+    powerClean: false,
+    chinUp: false,
+  },
   lastWorkout: null,
-  workingWeights: { squat: 45, press: 45, bench: 45, deadlift: 45 },
-  stallCounts: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-  incrementAdjusted: { squat: false, press: false, bench: false, deadlift: false },
   sessionCount: 0,
-  consecutiveStalls: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-  repSchemeStage: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-  deloadedAtCurrentStage: { squat: false, press: false, bench: false, deadlift: false },
-  graduationSuggested: false,
+  startDate: "",
 };
 
 export const DEFAULT_PROGRAMS_STATE: ProgramsState = {

@@ -217,95 +217,22 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     bodyweight: typeof tmRaw.bodyweight === "number" ? tmRaw.bodyweight : 0,
   };
 
-  // Starting Strength (added in 1.0.4): mirrors the TM migration shape — if the
-  // user has never activated SS, we backfill the default state so the type stays
-  // total (`ProgramsState.startingStrength: StartingStrengthState`, not optional)
-  // without disrupting anything. activeProgram is preserved, so existing 5/3/1
-  // and TM users see no behavioural change.
-  const ssRaw = parsed.programs?.startingStrength ?? {};
-  const ssWorkingWeights =
-    ssRaw.workingWeights && typeof ssRaw.workingWeights === "object"
-      ? ssRaw.workingWeights
-      : DEFAULT_STARTING_STRENGTH_STATE.workingWeights;
-  const ssStallCounts =
-    ssRaw.stallCounts && typeof ssRaw.stallCounts === "object"
-      ? ssRaw.stallCounts
-      : DEFAULT_STARTING_STRENGTH_STATE.stallCounts;
-  const ssIncrementAdjusted =
-    ssRaw.incrementAdjusted && typeof ssRaw.incrementAdjusted === "object"
-      ? ssRaw.incrementAdjusted
-      : DEFAULT_STARTING_STRENGTH_STATE.incrementAdjusted;
-  // 1.0.4 Wave 2 — four new SS fields. Wave 1 users (commit c4b1d1c) have none
-  // of these in their persisted state; default to zeros / false. Existing
-  // Wave 1 fields above are preserved as-is so a user mid-progression sees no
-  // behavioural change on upgrade — just an additive state-machine layer.
-  const ssConsecutiveStallsRaw =
-    ssRaw.consecutiveStalls && typeof ssRaw.consecutiveStalls === "object"
-      ? ssRaw.consecutiveStalls
-      : DEFAULT_STARTING_STRENGTH_STATE.consecutiveStalls;
-  const ssRepSchemeStageRaw =
-    ssRaw.repSchemeStage && typeof ssRaw.repSchemeStage === "object"
-      ? ssRaw.repSchemeStage
-      : DEFAULT_STARTING_STRENGTH_STATE.repSchemeStage;
-  const ssDeloadedAtCurrentStageRaw =
-    ssRaw.deloadedAtCurrentStage && typeof ssRaw.deloadedAtCurrentStage === "object"
-      ? ssRaw.deloadedAtCurrentStage
-      : DEFAULT_STARTING_STRENGTH_STATE.deloadedAtCurrentStage;
+  // Starting Strength (1.0.4 SS rebuild — Stage 1): the canonical Rippetoe SS
+  // state shape replaces the pre-rebuild Wave 1a/2 shape (a Stronglifts hybrid
+  // with repSchemeStage / consecutiveStalls / deloadedAtCurrentStage /
+  // graduationSuggested), which is structurally incompatible. SS shipped no
+  // workout screen and no onboarding route before this rebuild, so no user can
+  // hold meaningful SS progress — any persisted pre-rebuild SS state is
+  // discarded and reset to the canonical default rather than migrated
+  // field-by-field (migration vs. reset is the same effort here; reset is
+  // cleaner). The nested objects are cloned so the reset state never shares
+  // references with the DEFAULT_STARTING_STRENGTH_STATE constant.
   const startingStrengthState: StartingStrengthState = {
-    lastWorkout:
-      ssRaw.lastWorkout === "A" || ssRaw.lastWorkout === "B" ? ssRaw.lastWorkout : null,
-    workingWeights: {
-      squat:
-        typeof ssWorkingWeights.squat === "number"
-          ? ssWorkingWeights.squat
-          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.squat,
-      press:
-        typeof ssWorkingWeights.press === "number"
-          ? ssWorkingWeights.press
-          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.press,
-      bench:
-        typeof ssWorkingWeights.bench === "number"
-          ? ssWorkingWeights.bench
-          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.bench,
-      deadlift:
-        typeof ssWorkingWeights.deadlift === "number"
-          ? ssWorkingWeights.deadlift
-          : DEFAULT_STARTING_STRENGTH_STATE.workingWeights.deadlift,
-    },
-    stallCounts: {
-      squat: typeof ssStallCounts.squat === "number" ? ssStallCounts.squat : 0,
-      press: typeof ssStallCounts.press === "number" ? ssStallCounts.press : 0,
-      bench: typeof ssStallCounts.bench === "number" ? ssStallCounts.bench : 0,
-      deadlift: typeof ssStallCounts.deadlift === "number" ? ssStallCounts.deadlift : 0,
-    },
-    incrementAdjusted: {
-      squat: ssIncrementAdjusted.squat === true,
-      press: ssIncrementAdjusted.press === true,
-      bench: ssIncrementAdjusted.bench === true,
-      deadlift: ssIncrementAdjusted.deadlift === true,
-    },
-    sessionCount: typeof ssRaw.sessionCount === "number" ? ssRaw.sessionCount : 0,
-    consecutiveStalls: {
-      squat: typeof ssConsecutiveStallsRaw.squat === "number" ? ssConsecutiveStallsRaw.squat : 0,
-      press: typeof ssConsecutiveStallsRaw.press === "number" ? ssConsecutiveStallsRaw.press : 0,
-      bench: typeof ssConsecutiveStallsRaw.bench === "number" ? ssConsecutiveStallsRaw.bench : 0,
-      deadlift:
-        typeof ssConsecutiveStallsRaw.deadlift === "number" ? ssConsecutiveStallsRaw.deadlift : 0,
-    },
-    repSchemeStage: {
-      squat: typeof ssRepSchemeStageRaw.squat === "number" ? ssRepSchemeStageRaw.squat : 0,
-      press: typeof ssRepSchemeStageRaw.press === "number" ? ssRepSchemeStageRaw.press : 0,
-      bench: typeof ssRepSchemeStageRaw.bench === "number" ? ssRepSchemeStageRaw.bench : 0,
-      deadlift:
-        typeof ssRepSchemeStageRaw.deadlift === "number" ? ssRepSchemeStageRaw.deadlift : 0,
-    },
-    deloadedAtCurrentStage: {
-      squat: ssDeloadedAtCurrentStageRaw.squat === true,
-      press: ssDeloadedAtCurrentStageRaw.press === true,
-      bench: ssDeloadedAtCurrentStageRaw.bench === true,
-      deadlift: ssDeloadedAtCurrentStageRaw.deadlift === true,
-    },
-    graduationSuggested: ssRaw.graduationSuggested === true,
+    ...DEFAULT_STARTING_STRENGTH_STATE,
+    workingWeights: { ...DEFAULT_STARTING_STRENGTH_STATE.workingWeights },
+    consecutiveFailures: { ...DEFAULT_STARTING_STRENGTH_STATE.consecutiveFailures },
+    deloadHistory: { ...DEFAULT_STARTING_STRENGTH_STATE.deloadHistory },
+    microloadingActive: { ...DEFAULT_STARTING_STRENGTH_STATE.microloadingActive },
   };
 
   return {
@@ -320,19 +247,11 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
 
 function firstLaunchDefaults(): AppData {
   const unit = localeDefaultUnit();
-  // SS workingWeights default to the unit's bar weight (45 lb / 20 kg) so a
-  // first-launch user who picks SS but skips entering numbers gets a sensible
-  // empty-bar starting point in their own unit.
-  const bar = DEFAULT_BAR[unit];
+  // SS rebuild Stage 1: SS workingWeights now default to 0 and are populated by
+  // the user at onboarding (canonical — real starting weights are entered
+  // there), so first launch no longer pre-seeds them with the bar weight.
   return {
     ...DEFAULT_DATA,
-    programs: {
-      ...DEFAULT_DATA.programs,
-      startingStrength: {
-        ...DEFAULT_DATA.programs.startingStrength,
-        workingWeights: { squat: bar, press: bar, bench: bar, deadlift: bar },
-      },
-    },
     settings: {
       ...DEFAULT_SETTINGS,
       units: unit,

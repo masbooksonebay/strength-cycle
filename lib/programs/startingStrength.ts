@@ -1,21 +1,43 @@
-// Starting Strength — Mark Rippetoe novice linear progression.
+// Starting Strength — Mark Rippetoe's novice linear progression.
 //
-// Two workouts (A and B) alternate, 3x/week. Tracking is history-based, not
-// date-based: if last completed was A (or null on first session), next is B
-// (resp. A). Each lift progresses independently — a stall on Squat does not
-// affect Press, Bench, or Deadlift increments.
+// CANONICAL IMPLEMENTATION (1.0.4 SS rebuild). This replaces the pre-rebuild
+// Wave 1a/2 data layer, which was a Stronglifts-influenced hybrid: it added
+// 5x5 → 5x3 → 5x1 rep-scheme drops, a three-consecutive-stall deload rule, and
+// in-app "graduation" logic — none of which are Rippetoe's published method.
 //
-// Workout A: Squat 3×5, Press 3×5, Deadlift 1×5
-// Workout B: Squat 3×5, Bench 3×5, Deadlift 1×5
+// The canonical model implemented here, per Starting Strength: Basic Barbell
+// Training (3rd ed.) and startingstrength.com:
 //
-// Power Clean variant (substituting for Deadlift on Workout B in some printings
-// of Practical Programming) is intentionally NOT in scope for 1.0.4. Leaving a
-// TODO for potential 1.0.6+ toggle.
-// TODO(1.0.6+): optional Power Clean substitution on Workout B (state flag +
-// prescription branch). Not in 1.0.4.
+//   Three phases:
+//     Phase 1 — Ramp-up (~3 weeks): A = Squat/Press/Deadlift,
+//               B = Squat/Bench/Deadlift. Auto-advances after 9 sessions.
+//     Phase 2 — Main Phase: Workout B's deadlift slot becomes the pull variant
+//               (Bent-Over Row by default, or Power Clean if the user opts in).
+//     Phase 3 — Advanced Novice (user-opted, not automatic): Workout B swaps in
+//               Chin-ups; Workout A alternates its third lift between the
+//               deadlift and the pull variant.
+//
+//   Progression: every barbell lift adds a fixed per-session increment. After a
+//   lift's first deload it switches to a reduced (microloading) increment.
+//
+//   Stall protocol: 2 consecutive failed sessions on a lift → a 10% deload on
+//   that lift only, then microloading. No rep-scheme drops. Persistent failure
+//   to progress is resolved by the user manually switching to Texas Method or
+//   5/3/1 from onboarding — there is no in-app graduation logic.
+//
+//   Schedule: 3 non-consecutive days/week, A/B alternation.
+//
+// All exported functions are pure (no side effects, no I/O). Weight math takes
+// the user's unit as an explicit argument.
 
 import { WeightUnit, roundToPrecision } from "../plates";
-import { ProgramMetadata, ProgramSet, StartingStrengthState } from "./types";
+import { ProgramMetadata, SSLiftKey, SSPullVariant, StartingStrengthState } from "./types";
+
+// Re-export the SS state types + default (defined in ./types alongside the
+// other program state shapes) so consumers can import the full SS surface from
+// this module.
+export type { SSLiftKey, SSPullVariant, StartingStrengthState } from "./types";
+export { DEFAULT_STARTING_STRENGTH_STATE } from "./types";
 
 export const STARTING_STRENGTH_METADATA: ProgramMetadata = {
   id: "startingStrength",
@@ -30,298 +52,250 @@ export const STARTING_STRENGTH_METADATA: ProgramMetadata = {
   setupRoute: "startingstrength-setup",
 };
 
-export const SS_LIFTS = ["squat", "press", "bench", "deadlift"] as const;
-export type SSLift = (typeof SS_LIFTS)[number];
-
+// Workout identity. Sessions strictly alternate A/B/A/B…, starting at A.
 export type SSWorkout = "A" | "B";
 
-// Display labels for SS lifts. Aligned with the canonical lift names elsewhere
-// in the app (5/3/1, TM use "Bench Press", "Overhead Press") so cross-program
-// history lookups by name continue to work.
-export const SS_LIFT_DISPLAY_NAME: Record<SSLift, string> = {
+// Canonical display labels. Aligned with the lift names used elsewhere in the
+// app (5/3/1, TM use "Bench Press" / "Overhead Press") so cross-program history
+// lookups by name keep working. Always use these for display — never raw keys.
+export const SS_LIFT_DISPLAY_NAME: Record<SSLiftKey, string> = {
   squat: "Squat",
   press: "Overhead Press",
   bench: "Bench Press",
   deadlift: "Deadlift",
+  row: "Bent-Over Row",
+  powerClean: "Power Clean",
+  chinUp: "Chin-Up",
 };
 
-// One prescribed lift inside an SS workout. Mirrors the per-lift ProgramSet[]
-// shape used by wendler531 and texasMethod helpers, with the lift identity
-// attached because SS workouts contain multiple lifts (unlike the 1-lift-per-day
-// 5/3/1 split).
-export interface SSLiftPrescription {
-  lift: SSLift;
-  sets: ProgramSet[];
+// Short labels for the three published phases.
+export const SS_PHASE_DESCRIPTIONS: Record<1 | 2 | 3, string> = {
+  1: "Ramp-up",
+  2: "Main Phase",
+  3: "Advanced Novice",
+};
+
+// One lift's work-set prescription for the current session. SS is not a
+// percentage-of-1RM program — every work set is the same absolute `weight`.
+export interface SSPrescription {
+  lift: SSLiftKey;
+  sets: number;
+  reps: number; // target reps per work set; 0 for AMRAP lifts (chin-ups)
+  isAmrap: boolean; // true for chin-ups — every set taken to failure
+  weight: number; // working weight in the user's unit; 0 for chin-ups (bodyweight)
 }
 
-export type SSWorkoutPrescription = SSLiftPrescription[];
+// ── Constants ──────────────────────────────────────────────────────────────
 
-// Per-lift result the workout-completion handler needs. targetReps is included
-// so callers do not need to re-derive "did the user hit 5?" from the prescription.
-export interface SSLiftResult {
-  lift: SSLift;
-  repsCompleted: number;
-  weightLifted: number;
-  targetReps: number;
-}
+// Per-session linear-progression increment. Every barbell lift uses the same
+// jump; a lift switches from `full` to `reduced` once its microloading flag is
+// set (after its first deload).
+const SS_INCREMENT: Record<"full" | "reduced", Record<WeightUnit, number>> = {
+  full: { lb: 5, kg: 2.5 },
+  reduced: { lb: 2.5, kg: 1.25 },
+};
 
-export interface SSWorkoutResult {
-  workout: SSWorkout;
-  lifts: SSLiftResult[];
-}
+// Deload: 10% off the lift's working weight, rounded to a plate-friendly step
+// (coarser than the user's precision setting so the deload lands cleanly).
+const SS_DELOAD_MULTIPLIER = 0.9;
+const SS_DELOAD_ROUNDING: Record<WeightUnit, number> = { lb: 5, kg: 2.5 };
 
-// Workout alternation. First session (lastWorkout === null) is A.
-export function getNextWorkout(state: StartingStrengthState): SSWorkout {
+// Phase 1 (Ramp-up) auto-advances to Phase 2 after this many completed sessions
+// (3 weeks at 3 sessions/week).
+const PHASE_1_SESSION_TARGET = 9;
+
+// Consecutive failed sessions on one lift that trigger a deload on that lift.
+const FAILURE_DELOAD_THRESHOLD = 2;
+
+// Work-set scheme per lift. Warm-up sets are intentionally NOT modelled in the
+// data layer — the workout screen derives them (Stage 3 scope).
+const SS_SET_SCHEME: Record<SSLiftKey, { sets: number; reps: number; isAmrap: boolean }> = {
+  squat: { sets: 3, reps: 5, isAmrap: false },
+  press: { sets: 3, reps: 5, isAmrap: false },
+  bench: { sets: 3, reps: 5, isAmrap: false },
+  deadlift: { sets: 1, reps: 5, isAmrap: false },
+  row: { sets: 3, reps: 5, isAmrap: false },
+  powerClean: { sets: 5, reps: 3, isAmrap: false },
+  chinUp: { sets: 3, reps: 0, isAmrap: true },
+};
+
+// ── Internal helpers ───────────────────────────────────────────────────────
+
+// Next workout letter. Sessions strictly alternate; the first session (no
+// lastWorkout) is A.
+function nextWorkoutLetter(state: StartingStrengthState): SSWorkout {
   return state.lastWorkout === "A" ? "B" : "A";
 }
 
-// Lifts trained in each workout, in the order Rippetoe prescribes.
-const WORKOUT_LIFTS: Record<SSWorkout, SSLift[]> = {
-  A: ["squat", "press", "deadlift"],
-  B: ["squat", "bench", "deadlift"],
-};
-
-// Build a ProgramSet entry at 100% of the current working weight. SS does not
-// use percentage-of-1RM prescription — every working set is the same absolute
-// weight — so percentage=100 represents "100% of working weight" and `weight`
-// carries the real number the lifter loads. Warm-up sets are intentionally
-// omitted from the prescription in 1.0.4; they'll be added if/when SS gets a
-// dedicated workout screen in Wave 3.
-function workSet(weight: number, reps: number): ProgramSet {
-  return { percentage: 100, reps, isWarmup: false, isAmrap: false, weight };
+// The SSLiftKey the pull-variant preference selects.
+function pullVariantKey(variant: SSPullVariant): SSLiftKey {
+  return variant === "power_clean" ? "powerClean" : "row";
 }
 
-// Rep-scheme-stage → reps-per-set. Wave 2 introduces 5x3 and 5x1 stages that
-// fire when a lift can no longer progress at the current rep scheme.
-// Canonical Rippetoe terminology preserves the "5x" label (lineage from
-// sets-of-5); the actual set count is 3 for Squat/Press/Bench, 1 for Deadlift.
-export const SS_REP_SCHEME_STAGES = [5, 3, 1] as const;
-export type SSRepSchemeStage = 0 | 1 | 2;
+// ── Workout composition ────────────────────────────────────────────────────
 
-// User-facing label for a stage. Wave 3 UI consumes this; we keep it close to
-// the prescription helper so the literal stays in sync with the reps array.
-export function repSchemeStageLabel(stage: number): string {
-  if (stage === 1) return "5x3";
-  if (stage === 2) return "5x1";
-  return "5x5";
+// Lifts prescribed for the next workout, in order. Driven by currentPhase,
+// lastWorkout (A/B alternation) and pullVariantPreference.
+export function getCurrentWorkoutLifts(state: StartingStrengthState): SSLiftKey[] {
+  const workout = nextWorkoutLetter(state);
+  const pull = pullVariantKey(state.pullVariantPreference);
+
+  if (state.currentPhase === 1) {
+    return workout === "A"
+      ? ["squat", "press", "deadlift"]
+      : ["squat", "bench", "deadlift"];
+  }
+
+  if (state.currentPhase === 2) {
+    // Workout B's deadlift slot becomes the pull variant.
+    return workout === "A"
+      ? ["squat", "press", "deadlift"]
+      : ["squat", "bench", pull];
+  }
+
+  // Phase 3 (Advanced Novice). Workout B swaps the third movement for chin-ups.
+  // Workout A alternates its third movement session-to-session between the
+  // deadlift and the pull variant. The state shape carries no dedicated tracker
+  // for that sub-alternation, so it is derived from sessionCount parity: with
+  // strict A/B alternation from session 0 = A, A sessions land on even
+  // sessionCount values, so the upcoming A's index is sessionCount / 2 —
+  // even index → deadlift, odd index → pull variant.
+  if (workout === "B") return ["squat", "bench", "chinUp"];
+  const aSessionIndex = Math.floor(state.sessionCount / 2);
+  const thirdLift: SSLiftKey = aSessionIndex % 2 === 0 ? "deadlift" : pull;
+  return ["squat", "press", thirdLift];
 }
 
-// Build the prescription for a single lift at a given rep-scheme stage. Squat
-// and the upper-body lift are 3 sets of N reps; Deadlift is 1 set of N reps
-// (low-volume novice canonical — preserved across all stages).
-function liftPrescription(lift: SSLift, weight: number, stage: number): SSLiftPrescription {
-  const setCount = lift === "deadlift" ? 1 : 3;
-  const reps = SS_REP_SCHEME_STAGES[stage] ?? SS_REP_SCHEME_STAGES[0];
-  const sets: ProgramSet[] = [];
-  for (let i = 0; i < setCount; i++) sets.push(workSet(weight, reps));
-  return { lift, sets };
-}
-
+// Work-set prescription for a single lift in the current state.
 export function getWorkoutPrescription(
-  workout: SSWorkout,
   state: StartingStrengthState,
-): SSWorkoutPrescription {
-  return WORKOUT_LIFTS[workout].map((lift) =>
-    liftPrescription(lift, state.workingWeights[lift], state.repSchemeStage[lift]),
-  );
+  lift: SSLiftKey,
+): SSPrescription {
+  const scheme = SS_SET_SCHEME[lift];
+  return {
+    lift,
+    sets: scheme.sets,
+    reps: scheme.reps,
+    isAmrap: scheme.isAmrap,
+    weight: state.workingWeights[lift],
+  };
 }
 
-// Per-Rippetoe canonical increments. Squat/Press/Bench follow a two-stage
-// schedule: a larger jump until the user's first stall, then a smaller jump
-// thereafter. Deadlift has its own three-stage schedule (early-phase taper +
-// post-stall drop) because it adds weight ~3x faster than the other lifts and
-// needs to taper earlier even without an explicit stall.
-const PRE_STALL_INCREMENT: Record<SSLift, Record<WeightUnit, number>> = {
-  squat: { lb: 10, kg: 5 },
-  press: { lb: 5, kg: 2.5 },
-  bench: { lb: 5, kg: 2.5 },
-  deadlift: { lb: 15, kg: 7.5 }, // first 6 sessions only
-};
+// ── Progression ────────────────────────────────────────────────────────────
 
-const POST_STALL_INCREMENT: Record<SSLift, Record<WeightUnit, number>> = {
-  squat: { lb: 5, kg: 2.5 },
-  press: { lb: 2.5, kg: 1 },
-  bench: { lb: 2.5, kg: 1 },
-  deadlift: { lb: 5, kg: 2.5 },
-};
-
-// Deadlift's intermediate increment kicks in after 6 sessions, before any
-// explicit stall. After the first explicit stall it drops again to POST_STALL.
-const DEADLIFT_MID_INCREMENT: Record<WeightUnit, number> = { lb: 10, kg: 5 };
-const DEADLIFT_EARLY_PHASE_SESSIONS = 6;
-
-// Settings.units is "lb" | "kg" — same WeightUnit type as the rest of the app.
+// Per-session weight increment for a lift, in the user's unit. Lifts switch to
+// the reduced (microloading) increment after their first deload. Chin-ups
+// progress by reps, not load, so their increment is 0.
 export function getProgressionIncrement(
-  lift: SSLift,
   state: StartingStrengthState,
+  lift: SSLiftKey,
   unit: WeightUnit,
 ): number {
-  if (lift === "deadlift") {
-    // After first explicit stall, drop to the small increment regardless of session count.
-    if (state.incrementAdjusted.deadlift) return POST_STALL_INCREMENT.deadlift[unit];
-    // Early phase: first 6 sessions get the +15 / +7.5 jump.
-    if (state.sessionCount < DEADLIFT_EARLY_PHASE_SESSIONS) return PRE_STALL_INCREMENT.deadlift[unit];
-    // Sessions 7+ without a stall: drop to mid increment automatically.
-    return DEADLIFT_MID_INCREMENT[unit];
-  }
-  return state.incrementAdjusted[lift]
-    ? POST_STALL_INCREMENT[lift][unit]
-    : PRE_STALL_INCREMENT[lift][unit];
+  if (lift === "chinUp") return 0;
+  const tier = state.microloadingActive[lift] ? "reduced" : "full";
+  return SS_INCREMENT[tier][unit];
 }
 
-// Deload rounding: nearest 5 lb / 2.5 kg. Coarser than the user's general
-// precision setting so a deload lands on round plate-friendly weights.
-const SS_DELOAD_ROUNDING: Record<WeightUnit, number> = { lb: 5, kg: 2.5 };
-const SS_DELOAD_MULTIPLIER = 0.9; // 10% off — Rippetoe canonical
-
-// Apply the result of a completed workout. Wave 2 implements the full Rippetoe
-// novice stall state machine, per-lift and independent:
-//
-//   RULE A — first-ever stall on this lift (consecutiveStalls hits 1 and the
-//     pre-stall "incrementAdjusted" flag has never flipped before): we flip
-//     the flag, dropping subsequent progressions to the smaller post-stall
-//     increment. Weight unchanged.
-//
-//   RULE B — three consecutive stalls on the same lift:
-//     - At repSchemeStage 0 or 1 (5x5 or 5x3):
-//         · First three-strike cycle at this stage (deloadedAtCurrentStage=false)
-//           → DELOAD: workingWeight *= 0.9 (round to 5 lb / 2.5 kg),
-//             deloadedAtCurrentStage flips to true, consecutiveStalls resets.
-//         · Second three-strike cycle (deloadedAtCurrentStage=true) → drop the
-//           rep scheme: 5x5 → 5x3 or 5x3 → 5x1. deloadedAtCurrentStage resets
-//           for the fresh stage. Weight unchanged. consecutiveStalls resets.
-//     - At repSchemeStage 2 (5x1): graduate trigger — set graduationSuggested
-//       so Wave 3's modal can suggest Texas Method. We also flip
-//       deloadedAtCurrentStage[lift]=true at stage 2 so the cross-state
-//       "5x1 stall cluster on a second lift" check has a flag to read.
-//
-//   Anything else (consecutiveStalls === 2, etc.) just counts. The user retries
-//   the same weight next session.
-//
-// After processing every lift in the result, we also re-evaluate graduation
-// across lifts: if two or more lifts are at stage 2 with the cross-state flag
-// set, graduationSuggested is forced true (idempotent — covers the case where
-// the user dismissed the prompt after lift A and lift B subsequently joins).
-export function completeWorkout(
+// Apply a 10% deload to one lift: drop the working weight (rounded to a
+// plate-friendly step), record the deload, activate microloading, and clear the
+// lift's consecutive-failure counter. Chin-ups carry no load — a no-op for them.
+export function applyDeload(
   state: StartingStrengthState,
-  result: SSWorkoutResult,
+  lift: SSLiftKey,
   unit: WeightUnit,
 ): StartingStrengthState {
-  const nextWorkingWeights = { ...state.workingWeights };
-  const nextStallCounts = { ...state.stallCounts };
-  const nextIncrementAdjusted = { ...state.incrementAdjusted };
-  const nextConsecutiveStalls = { ...state.consecutiveStalls };
-  const nextRepSchemeStage = { ...state.repSchemeStage };
-  const nextDeloadedAtCurrentStage = { ...state.deloadedAtCurrentStage };
-  let nextGraduationSuggested = state.graduationSuggested;
+  if (lift === "chinUp") return state;
+  const deloaded = roundToPrecision(
+    state.workingWeights[lift] * SS_DELOAD_MULTIPLIER,
+    SS_DELOAD_ROUNDING[unit],
+  );
+  return {
+    ...state,
+    workingWeights: { ...state.workingWeights, [lift]: deloaded },
+    deloadHistory: { ...state.deloadHistory, [lift]: state.deloadHistory[lift] + 1 },
+    microloadingActive: { ...state.microloadingActive, [lift]: true },
+    consecutiveFailures: { ...state.consecutiveFailures, [lift]: 0 },
+  };
+}
 
-  for (const liftResult of result.lifts) {
-    const { lift, repsCompleted, targetReps } = liftResult;
-    const hit = repsCompleted >= targetReps;
-
-    if (hit) {
-      // Success: reset consecutive stall counter, apply increment for next session.
-      nextConsecutiveStalls[lift] = 0;
-      const increment = getProgressionIncrement(lift, state, unit);
-      nextWorkingWeights[lift] = state.workingWeights[lift] + increment;
-      continue;
-    }
-
-    // Miss: bump both total (Wave 1 history) and consecutive (Wave 2 trigger) stall counters.
-    nextStallCounts[lift] = state.stallCounts[lift] + 1;
-    nextConsecutiveStalls[lift] = state.consecutiveStalls[lift] + 1;
-    const consec = nextConsecutiveStalls[lift];
-
-    // RULE A — first stall ever on this lift drops the per-session increment.
-    if (consec === 1 && !state.incrementAdjusted[lift]) {
-      nextIncrementAdjusted[lift] = true;
-      continue;
-    }
-
-    // RULE B — three consecutive stalls trigger structural transitions.
-    if (consec === 3) {
-      const stage = state.repSchemeStage[lift];
-      if (stage < 2) {
-        if (!state.deloadedAtCurrentStage[lift]) {
-          // RULE B-i — first three-strike cycle at this stage: deload weight.
-          nextWorkingWeights[lift] = roundToPrecision(
-            state.workingWeights[lift] * SS_DELOAD_MULTIPLIER,
-            SS_DELOAD_ROUNDING[unit],
-          );
-          nextDeloadedAtCurrentStage[lift] = true;
-          nextConsecutiveStalls[lift] = 0;
-        } else {
-          // RULE B-ii — already deloaded at this stage: drop the rep scheme.
-          nextRepSchemeStage[lift] = stage + 1;
-          nextDeloadedAtCurrentStage[lift] = false; // fresh stage = fresh deload chance
-          nextConsecutiveStalls[lift] = 0;
-          // Weight unchanged — lower rep volume buys the user another shot.
-        }
-      } else {
-        // RULE B-iii — stalled out at 5x1: suggest graduation. The flag on
-        // deloadedAtCurrentStage at stage 2 is a "5x1 stall cluster fired"
-        // marker for the cross-state two-lift check below.
-        nextGraduationSuggested = true;
-        nextDeloadedAtCurrentStage[lift] = true;
-        nextConsecutiveStalls[lift] = 0;
-      }
-    }
-    // consec === 2 (or any other intermediate count): no rule, retry next session.
+// Register the outcome of a single lift in the current session (per-lift
+// tap-to-complete logging). On success: clear the failure counter and add the
+// per-session increment. On failure: bump the consecutive-failure counter — and
+// once it reaches the threshold (2), automatically apply the 10% deload (which
+// also resets the counter and activates microloading). Chin-ups are rep-based:
+// registering a chin-up outcome only clears its counter, never changes weight.
+export function registerSetResult(
+  state: StartingStrengthState,
+  lift: SSLiftKey,
+  didCompleteAllReps: boolean,
+  unit: WeightUnit,
+): StartingStrengthState {
+  if (lift === "chinUp") {
+    return {
+      ...state,
+      consecutiveFailures: { ...state.consecutiveFailures, chinUp: 0 },
+    };
   }
 
-  // Cross-state: a 5x1 stall cluster recorded on ≥2 distinct lifts → graduate.
-  // Re-fires graduationSuggested even if the user previously dismissed, because
-  // a second lift hitting the wall is fresh signal that LP is exhausted.
-  const fiveXOneClusterCount = SS_LIFTS.filter(
-    (l) => nextRepSchemeStage[l] === 2 && nextDeloadedAtCurrentStage[l],
-  ).length;
-  if (fiveXOneClusterCount >= 2) nextGraduationSuggested = true;
+  if (didCompleteAllReps) {
+    const increment = getProgressionIncrement(state, lift, unit);
+    return {
+      ...state,
+      consecutiveFailures: { ...state.consecutiveFailures, [lift]: 0 },
+      workingWeights: {
+        ...state.workingWeights,
+        [lift]: state.workingWeights[lift] + increment,
+      },
+    };
+  }
 
-  return {
-    lastWorkout: result.workout,
-    workingWeights: nextWorkingWeights,
-    stallCounts: nextStallCounts,
-    incrementAdjusted: nextIncrementAdjusted,
+  const failures = state.consecutiveFailures[lift] + 1;
+  const afterFailure: StartingStrengthState = {
+    ...state,
+    consecutiveFailures: { ...state.consecutiveFailures, [lift]: failures },
+  };
+  if (failures >= FAILURE_DELOAD_THRESHOLD) {
+    return applyDeload(afterFailure, lift, unit);
+  }
+  return afterFailure;
+}
+
+// ── Phase / session lifecycle ──────────────────────────────────────────────
+
+// Whether the automatic Phase 1 → 2 transition should fire. Only this
+// transition is automatic — Phase 2 → 3 is a manual, user-opted toggle.
+export function shouldAdvancePhase(state: StartingStrengthState): boolean {
+  return state.currentPhase === 1 && state.phaseSessionCount >= PHASE_1_SESSION_TARGET;
+}
+
+// Finalize a workout. Rotates the A/B schedule and advances the lifetime
+// session count; only a fully completed session counts toward the Phase 1 → 2
+// ramp-up trigger (an abandoned session still rotates the schedule). Fires the
+// Phase 1 → 2 transition when the ramp-up target is reached.
+export function completeWorkout(
+  state: StartingStrengthState,
+  didCompleteAllLifts: boolean,
+): StartingStrengthState {
+  const justCompleted = nextWorkoutLetter(state);
+  const advanced: StartingStrengthState = {
+    ...state,
+    lastWorkout: justCompleted,
     sessionCount: state.sessionCount + 1,
-    consecutiveStalls: nextConsecutiveStalls,
-    repSchemeStage: nextRepSchemeStage,
-    deloadedAtCurrentStage: nextDeloadedAtCurrentStage,
-    graduationSuggested: nextGraduationSuggested,
+    phaseSessionCount: didCompleteAllLifts
+      ? state.phaseSessionCount + 1
+      : state.phaseSessionCount,
   };
+
+  if (shouldAdvancePhase(advanced)) {
+    return { ...advanced, currentPhase: 2, phaseSessionCount: 0 };
+  }
+  return advanced;
 }
 
-// Convenience reader. Wave 3 modal callers can read state.graduationSuggested
-// directly; this helper keeps the surface uniform with dismissGraduationPrompt.
-export function checkGraduationTrigger(state: StartingStrengthState): boolean {
-  return state.graduationSuggested;
-}
-
-// Wave 3 calls this when the user dismisses the Graduate-to-Texas-Method modal.
-// Clears the flag but leaves deloadedAtCurrentStage / repSchemeStage intact so
-// the cross-state "second lift" trigger can still re-fire later if warranted.
-export function dismissGraduationPrompt(state: StartingStrengthState): StartingStrengthState {
-  return { ...state, graduationSuggested: false };
-}
-
-// Seed a fresh Starting Strength state. Caller supplies the user's entered
-// starting weights from the onboarding / Settings program-switch flow. All
-// stall counters and increment-adjusted flags start at the un-stalled defaults;
-// sessionCount = 0 means the Deadlift early-phase taper is still in effect.
-export function initStartingStrengthState(startingWeights: {
-  squat: number;
-  press: number;
-  bench: number;
-  deadlift: number;
-}): StartingStrengthState {
-  return {
-    lastWorkout: null,
-    workingWeights: { ...startingWeights },
-    stallCounts: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-    incrementAdjusted: { squat: false, press: false, bench: false, deadlift: false },
-    sessionCount: 0,
-    consecutiveStalls: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-    repSchemeStage: { squat: 0, press: 0, bench: 0, deadlift: 0 },
-    deloadedAtCurrentStage: { squat: false, press: false, bench: false, deadlift: false },
-    graduationSuggested: false,
-  };
+// Set the Workout B pull-variant preference (Bent-Over Row or Power Clean).
+export function togglePullVariant(
+  state: StartingStrengthState,
+  variant: SSPullVariant,
+): StartingStrengthState {
+  return { ...state, pullVariantPreference: variant };
 }

@@ -225,18 +225,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       bodyweight: tm.bodyweight ? convertWeight(tm.bodyweight, from, next, nextPrecision, rounding) : 0,
     };
 
-    // Mirror TM: convert SS workingWeights so an SS user who switches units
-    // keeps consistent state. Stall counters / increment-adjusted flags / etc.
-    // are unitless.
+    // SS rebuild Stage 1: workingWeights is now a 7-key Record<SSLiftKey, number>
+    // (squat/press/bench/deadlift/row/powerClean/chinUp). Convert every entry
+    // generically via the same helper used for TM intensity weights instead of
+    // hardcoding the lift keys; phase / counter / flag fields are all unitless.
     const ss = data.programs.startingStrength;
     const nextSs: StartingStrengthState = {
       ...ss,
-      workingWeights: {
-        squat: convertWeight(ss.workingWeights.squat, from, next, nextPrecision, rounding),
-        press: convertWeight(ss.workingWeights.press, from, next, nextPrecision, rounding),
-        bench: convertWeight(ss.workingWeights.bench, from, next, nextPrecision, rounding),
-        deadlift: convertWeight(ss.workingWeights.deadlift, from, next, nextPrecision, rounding),
-      },
+      workingWeights: convertWeightMap(ss.workingWeights) as StartingStrengthState["workingWeights"],
     };
 
     const currentPrecision = data.settings.precision;
