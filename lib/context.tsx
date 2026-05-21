@@ -48,6 +48,7 @@ interface AppCtx {
   updateWendler531State: (updates: Partial<Wendler531State>) => void;
   updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
   updateStartingStrengthState: (updates: Partial<StartingStrengthState>) => void;
+  finishStartingStrengthWorkout: (workouts: WorkoutLog[], nextState: StartingStrengthState) => void;
   setOnboardingComplete: (complete: boolean) => void;
   completeOnboarding: (patch: Partial<AppData>) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
@@ -77,6 +78,7 @@ const Ctx = createContext<AppCtx>({
   updateWendler531State: () => {},
   updateTexasMethodState: () => {},
   updateStartingStrengthState: () => {},
+  finishStartingStrengthWorkout: () => {},
   setOnboardingComplete: () => {},
   completeOnboarding: () => {},
   addExtraSet: () => {},
@@ -184,6 +186,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
     });
   }, [data, persist]);
+
+  // Atomic finalizer for a completed Starting Strength session. The SS workout
+  // screen emits one WorkoutLog per lift AND advances the SS program state;
+  // both must land in a single persist() — chaining addWorkout (×3) +
+  // updateStartingStrengthState would hit the closure-staleness race (each call
+  // reads the same render's `data`) and drop all but the last write. Same
+  // rationale as completeOnboarding / applyDevPatch.
+  const finishStartingStrengthWorkout = useCallback(
+    (workouts: WorkoutLog[], nextState: StartingStrengthState) => {
+      const tagged = workouts.map((w) => ({ ...w, program: w.program ?? "startingStrength" }));
+      persist({
+        ...data,
+        workouts: [...data.workouts, ...tagged],
+        programs: { ...data.programs, startingStrength: nextState },
+      });
+    },
+    [data, persist],
+  );
 
   const setOnboardingComplete = useCallback((complete: boolean) => {
     persist({ ...data, onboardingComplete: complete });
@@ -301,6 +321,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateWendler531State,
       updateTexasMethodState,
       updateStartingStrengthState,
+      finishStartingStrengthWorkout,
       setOnboardingComplete,
       completeOnboarding,
       addExtraSet,
