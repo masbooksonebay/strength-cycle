@@ -6,10 +6,23 @@ import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 import { ProgramId, PROGRAMS } from "../../lib/programs";
 
-// PROGRAM_LIST is intentionally narrower than ProgramId in 1.0.4 Wave 1a:
-// Starting Strength's onboarding card + setup screen land in Wave 3. The copy
-// below is pre-staged so adding "startingStrength" here is a one-line change.
-const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod"];
+const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod", "startingStrength"];
+
+// User-facing card title. Starting Strength is surfaced as "3x5 Strength" — the
+// metadata displayName ("Starting Strength") is kept internal-only; the picker
+// and Settings switcher present this neutral label instead.
+const PROGRAM_CARD_TITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.displayName,
+  texasMethod: PROGRAMS.texasMethod.displayName,
+  startingStrength: "3x5 Strength",
+};
+
+// User-facing card subtitle (the short meta line under the title).
+const PROGRAM_CARD_SUBTITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.shortDescription,
+  texasMethod: PROGRAMS.texasMethod.shortDescription,
+  startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
+};
 
 const PROGRAM_LONG_COPY: Record<ProgramId, string> = {
   wendler531:
@@ -17,7 +30,7 @@ const PROGRAM_LONG_COPY: Record<ProgramId, string> = {
   texasMethod:
     "Volume / Recovery / Intensity weekly structure with 5RM PR attempts. Best for post-novice lifters ready for harder weekly progression.",
   startingStrength:
-    "Rippetoe's novice linear progression. A/B workout alternation, 3x/week, with per-session increments on every lift. Best for true novices building base strength.",
+    "Inspired by Rippetoe's methodology. A/B workouts alternate 3x/week with per-session weight increases on every lift. Best for true novices in their first 3–9 months of training.",
 };
 
 export default function ProgramSelect() {
@@ -27,7 +40,8 @@ export default function ProgramSelect() {
 
   const continueNext = () => {
     if (selected === "wendler531") router.push("/onboarding/wendler531-setup");
-    else router.push("/onboarding/texasmethod-setup");
+    else if (selected === "texasMethod") router.push("/onboarding/texasmethod-setup");
+    else router.push("/onboarding/startingstrength-setup");
   };
 
   return (
@@ -41,7 +55,6 @@ export default function ProgramSelect() {
         <Text style={[styles.title, { color: theme.text }]}>Choose your program</Text>
 
         {PROGRAM_LIST.map((id) => {
-          const meta = PROGRAMS[id];
           const isSelected = selected === id;
           return (
             <TouchableOpacity
@@ -58,13 +71,13 @@ export default function ProgramSelect() {
               activeOpacity={0.8}
               accessibilityRole="radio"
               accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`${meta.displayName} program`}
+              accessibilityLabel={`${PROGRAM_CARD_TITLE[id]} program`}
             >
               <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>{meta.displayName}</Text>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{PROGRAM_CARD_TITLE[id]}</Text>
                 {isSelected && <Ionicons name="checkmark-circle" size={24} color={theme.accent} />}
               </View>
-              <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{meta.shortDescription}</Text>
+              <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{PROGRAM_CARD_SUBTITLE[id]}</Text>
               <Text style={[styles.cardDesc, { color: theme.textSecondary }]}>{PROGRAM_LONG_COPY[id]}</Text>
             </TouchableOpacity>
           );
@@ -80,7 +93,7 @@ export default function ProgramSelect() {
           style={[styles.btn, { backgroundColor: theme.accent }]}
           onPress={continueNext}
           accessibilityRole="button"
-          accessibilityLabel={`Continue with ${PROGRAMS[selected].displayName}`}
+          accessibilityLabel={`Continue with ${PROGRAM_CARD_TITLE[selected]}`}
         >
           <Text style={styles.btnText}>Continue</Text>
         </TouchableOpacity>

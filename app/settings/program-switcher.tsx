@@ -6,14 +6,33 @@ import { spacing, borderRadius } from "../../constants/theme";
 import { ProgramId, PROGRAMS } from "../../lib/programs";
 import { AppData } from "../../lib/store";
 
-const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod"];
+const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod", "startingStrength"];
 
-// "Seeded" = user has supplied real numbers for this program. After Phase 5E,
-// both programs share lifts[name].oneRepMax as the single source of truth, so
-// the seeded check is identical: any lift with a non-default 1RM means the
-// user has touched the values (via onboarding or Settings edit). 5/3/1 → TM
-// switches no longer require re-entering values when 1RMs are already set.
-function isProgramSeeded(_id: ProgramId, data: AppData): boolean {
+// User-facing row copy. Starting Strength is surfaced as "3x5 Strength" — the
+// metadata displayName ("Starting Strength") is kept internal-only; the picker
+// and this switcher present this neutral label + subtitle instead.
+const PROGRAM_ROW_TITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.displayName,
+  texasMethod: PROGRAMS.texasMethod.displayName,
+  startingStrength: "3x5 Strength",
+};
+
+const PROGRAM_ROW_SUBTITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.shortDescription,
+  texasMethod: PROGRAMS.texasMethod.shortDescription,
+  startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
+};
+
+// "Seeded" = the user has supplied real numbers for this program. 5/3/1 and
+// Texas Method share lifts[name].oneRepMax as their single source of truth
+// (Phase 5E), so a lift with a non-default 1RM means the user has touched the
+// values. Starting Strength is independent — it carries its own workingWeights
+// slice and never writes lifts[].oneRepMax — so its seeded signal is startDate,
+// which finishStartingStrengthSetup stamps when the SS setup screen is
+// submitted. Without this branch a user who had set 1RMs for another program
+// would be wrongly treated as having seeded SS and skip the SS setup screen.
+function isProgramSeeded(id: ProgramId, data: AppData): boolean {
+  if (id === "startingStrength") return data.programs.startingStrength.startDate !== "";
   return data.lifts.some((l) => l.oneRepMax !== 100);
 }
 
@@ -25,7 +44,9 @@ export default function ProgramSwitcher() {
     if (id === data.activeProgram) return;
     if (isProgramSeeded(id, data)) {
       switchProgram(id);
-      router.replace("/(tabs)/settings");
+      // Already-seeded Starting Strength drops the user straight into their next
+      // workout; 5/3/1 / TM return to Settings (their existing post-switch path).
+      router.replace(id === "startingStrength" ? "/(tabs)" : "/(tabs)/settings");
       return;
     }
     const meta = PROGRAMS[id];
@@ -44,7 +65,6 @@ export default function ProgramSwitcher() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {PROGRAM_LIST.map((id, i) => {
-            const meta = PROGRAMS[id];
             const isActive = id === data.activeProgram;
             const isLast = i === PROGRAM_LIST.length - 1;
             return (
@@ -55,11 +75,11 @@ export default function ProgramSwitcher() {
                 activeOpacity={0.6}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isActive }}
-                accessibilityLabel={`${meta.displayName}${isActive ? ", currently active" : ""}`}
+                accessibilityLabel={`${PROGRAM_ROW_TITLE[id]}${isActive ? ", currently active" : ""}`}
               >
                 <View style={styles.rowText}>
-                  <Text style={[styles.rowLabel, { color: theme.text }]}>{meta.displayName}</Text>
-                  <Text style={[styles.rowMeta, { color: theme.textSecondary }]}>{meta.shortDescription}</Text>
+                  <Text style={[styles.rowLabel, { color: theme.text }]}>{PROGRAM_ROW_TITLE[id]}</Text>
+                  <Text style={[styles.rowMeta, { color: theme.textSecondary }]}>{PROGRAM_ROW_SUBTITLE[id]}</Text>
                 </View>
                 {isActive && <Ionicons name="checkmark" size={22} color={theme.accent} />}
               </TouchableOpacity>

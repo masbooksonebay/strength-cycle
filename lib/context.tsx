@@ -17,7 +17,18 @@ import {
   Wendler531State,
   TexasMethodState,
   StartingStrengthState,
+  DEFAULT_STARTING_STRENGTH_STATE,
 } from "./programs";
+
+// The four barbell lifts a user seeds at Starting Strength onboarding. SS keeps
+// these in its own programs.startingStrength.workingWeights slice; the Phase 2/3
+// lifts (row / powerClean / chinUp) are seeded later, not at setup.
+export interface SSStartingWeights {
+  squat: number;
+  bench: number;
+  deadlift: number;
+  press: number;
+}
 
 // When IAP UI is hidden, all gated flags behave as unlocked.
 function applyIapOverrides(data: AppData): AppData {
@@ -49,6 +60,7 @@ interface AppCtx {
   updateTexasMethodState: (updates: Partial<TexasMethodState>) => void;
   updateStartingStrengthState: (updates: Partial<StartingStrengthState>) => void;
   finishStartingStrengthWorkout: (workouts: WorkoutLog[], nextState: StartingStrengthState) => void;
+  finishStartingStrengthSetup: (weights: SSStartingWeights) => void;
   setOnboardingComplete: (complete: boolean) => void;
   completeOnboarding: (patch: Partial<AppData>) => void;
   addExtraSet: (liftName: string, set: ExtraSet) => void;
@@ -79,6 +91,7 @@ const Ctx = createContext<AppCtx>({
   updateTexasMethodState: () => {},
   updateStartingStrengthState: () => {},
   finishStartingStrengthWorkout: () => {},
+  finishStartingStrengthSetup: () => {},
   setOnboardingComplete: () => {},
   completeOnboarding: () => {},
   addExtraSet: () => {},
@@ -205,6 +218,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [data, persist],
   );
 
+  // Atomic onboarding finalizer for Starting Strength. Mirrors completeOnboarding
+  // and the finishStartingStrengthWorkout naming from Stage 3. SS keeps its own
+  // workingWeights slice rather than driving off lifts[].oneRepMax — the four
+  // entered values are work-set weights, not 1RMs, so `lifts` is intentionally
+  // left untouched. Phase 2/3 lifts (row / powerClean / chinUp) stay at 0; they
+  // are seeded in a later stage. A single persist() writes the seeded program
+  // slice + activeProgram + onboardingComplete together, the same
+  // closure-staleness mitigation as completeOnboarding / applyDevPatch.
+  const finishStartingStrengthSetup = useCallback((weights: SSStartingWeights) => {
+    const seeded: StartingStrengthState = {
+      ...DEFAULT_STARTING_STRENGTH_STATE,
+      workingWeights: {
+        ...DEFAULT_STARTING_STRENGTH_STATE.workingWeights,
+        squat: weights.squat,
+        bench: weights.bench,
+        deadlift: weights.deadlift,
+        press: weights.press,
+      },
+      startDate: new Date().toISOString(),
+    };
+    persist({
+      ...data,
+      activeProgram: "startingStrength",
+      programs: { ...data.programs, startingStrength: seeded },
+      onboardingComplete: true,
+    });
+  }, [data, persist]);
+
   const setOnboardingComplete = useCallback((complete: boolean) => {
     persist({ ...data, onboardingComplete: complete });
   }, [data, persist]);
@@ -322,6 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateTexasMethodState,
       updateStartingStrengthState,
       finishStartingStrengthWorkout,
+      finishStartingStrengthSetup,
       setOnboardingComplete,
       completeOnboarding,
       addExtraSet,
