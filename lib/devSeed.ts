@@ -1,12 +1,12 @@
 // Dev-only seed helpers for App Store Connect screenshot prep.
-// Wires up realistic Squat history per the active program so the Track tab
-// shows populated charts and tables for marketing screenshots. Forces units
-// to kg so weights read as the kg values specified in the seed (regardless
-// of the current Settings unit choice — gets switched back when the user
-// resets via the Wipe button).
+// Wires up realistic history per the active program so the Track tab shows
+// populated charts and tables for marketing screenshots. Forces units to kg so
+// weights read as the kg values specified in the seed (regardless of the
+// current Settings unit choice — gets switched back when the user resets via
+// the Wipe button).
 
 import { AppData, WorkoutLog, SetLog, generateId } from "./store";
-import { ProgramId } from "./programs";
+import { ProgramId, ProgramsState } from "./programs";
 import { DEFAULT_PRECISION, DEFAULT_BAR, defaultPlatesFor } from "./plates";
 
 const STARTING_SQUAT_1RM_KG = 90;
@@ -48,6 +48,8 @@ function isoDaysAgo(days: number): string {
 // TM progression: cycle N TM = (90 × 0.9) + (N - 1) × 4.5 kg.
 // Week percentages: 1=65/75/85, 2=70/80/90, 3=75/85/95, 4 (Deload)=40/50/60.
 // AMRAP reps: cycle 1 = 8/6/5, cycle 2 = 7/5/4, cycle 3 = 6/4/3.
+const WENDLER_SEED_CYCLES = 3;
+
 function buildWendler531SquatHistory(): WorkoutLog[] {
   const TM_BASE = STARTING_SQUAT_1RM_KG * 0.9; // 81 kg
   const TM_INC = 4.5; // lower-body cycle bump
@@ -64,7 +66,7 @@ function buildWendler531SquatHistory(): WorkoutLog[] {
   };
   const workouts: WorkoutLog[] = [];
   let weekIndex = 0; // 0..11
-  for (let cycle = 1; cycle <= 3; cycle++) {
+  for (let cycle = 1; cycle <= WENDLER_SEED_CYCLES; cycle++) {
     const tm = TM_BASE + (cycle - 1) * TM_INC;
     for (let w = 0; w < 4; w++) {
       const week = WEEKS[w];
@@ -181,46 +183,95 @@ function buildTexasMethodSquatHistory(): WorkoutLog[] {
 }
 
 // ─── Starting Strength ───────────────────────────────────────────────────────
-// 10 squat sessions of Rippetoe novice linear progression. SS opens both
-// Workout A and B with the squat, so the seed is one squat WorkoutLog per
-// session, A/B alternating from A. 3×5 work sets at a working weight that adds
-// 2.5 kg per session — no AMRAP set (SS barbell lifts are not AMRAP). The week
-// field ("Workout A"/"Workout B") and cycle (session number) match the live SS
-// workout screen. SS has no 1RM concept — its source of truth is
-// programs.startingStrength.workingWeights, advanced in buildSeedPatch.
-const SS_SQUAT_SESSIONS = 10;
-const SS_SQUAT_START_KG = 85;
-const SS_SQUAT_INCREMENT_KG = 2.5;
+// SS history is BACK-COMPUTED from the user's CURRENT working weights so the
+// seed's end-state IS today's working weight — today's workout is the natural
+// next linear-progression step, never a phantom PR jump (Wave I #13). The seed
+// leaves workingWeights untouched and seeds history for ALL FOUR barbell lifts
+// (the previous seed advanced squat only, leaving bench/deadlift/press to
+// diverge from their onboarding values).
+//
+// Phase 1 A/B composition: A = Squat/Press/Deadlift, B = Squat/Bench/Deadlift.
+// Squat and deadlift are trained every session; press only on A, bench only on
+// B — so press/bench progress at half the per-session rate. One WorkoutLog per
+// lift, week = "Workout A"/"Workout B", cycle = session number.
+const SS_SEED_SESSIONS = 10;
+const SS_SEED_INCREMENT_KG = 2.5; // full LP increment in kg (the seed forces kg)
+const SS_SEED_FLOOR_KG = 20; // never back-compute below an empty barbell
 // M/W/F cadence — day-ago offset per session, oldest first; newest = ~1 day ago.
-const SS_SQUAT_DAYS_AGO = [22, 19, 17, 15, 12, 10, 8, 5, 3, 1];
+const SS_SEED_DAYS_AGO = [22, 19, 17, 15, 12, 10, 8, 5, 3, 1];
 
-function ssSquatFinalWorkingWeight(): number {
-  return SS_SQUAT_START_KG + (SS_SQUAT_SESSIONS - 1) * SS_SQUAT_INCREMENT_KG;
+type SSSeedLiftKey = "squat" | "press" | "bench" | "deadlift";
+const SS_SEED_LIFT_NAME: Record<SSSeedLiftKey, string> = {
+  squat: "Squat",
+  press: "Overhead Press",
+  bench: "Bench Press",
+  deadlift: "Deadlift",
+};
+const SS_SEED_LIFT_SETS: Record<SSSeedLiftKey, number> = {
+  squat: 3,
+  press: 3,
+  bench: 3,
+  deadlift: 1,
+};
+
+// Back-computed weight for one appearance of a lift. `appearancesAfter` counts
+// how many later seeded sessions also train this lift (0 = most recent). The
+// most recent appearance sits exactly one increment below the current working
+// weight, so today's workout AT the working weight is the natural next step.
+function ssSeedWeight(currentWorkingWeight: number, appearancesAfter: number): number {
+  const raw = currentWorkingWeight - (appearancesAfter + 1) * SS_SEED_INCREMENT_KG;
+  return roundKg(Math.max(SS_SEED_FLOOR_KG, raw));
 }
 
-function buildStartingStrengthSquatHistory(): WorkoutLog[] {
+function buildStartingStrengthHistory(workingWeights: Record<string, number>): WorkoutLog[] {
+  const aSessions = Math.ceil(SS_SEED_SESSIONS / 2); // count of Workout A sessions
+  const bSessions = Math.floor(SS_SEED_SESSIONS / 2); // count of Workout B sessions
   const workouts: WorkoutLog[] = [];
-  for (let i = 0; i < SS_SQUAT_SESSIONS; i++) {
+  let aSeen = 0; // Workout A sessions already emitted
+  let bSeen = 0; // Workout B sessions already emitted
+
+  for (let i = 0; i < SS_SEED_SESSIONS; i++) {
     const sessionNumber = i + 1;
-    const weight = SS_SQUAT_START_KG + i * SS_SQUAT_INCREMENT_KG;
-    const letter = sessionNumber % 2 === 1 ? "A" : "B"; // first session is Workout A
-    workouts.push({
-      id: generateId(),
-      date: isoDaysAgo(SS_SQUAT_DAYS_AGO[i]),
-      exercise: "Squat",
-      week: `Workout ${letter}`,
-      cycle: sessionNumber,
-      sets: Array.from({ length: 3 }, () => ({
-        percentage: 100,
-        weight,
-        targetReps: "5",
-        actualReps: 5,
-        isAmrap: false,
-        isWarmup: false,
-      })),
-      notes: "",
-      program: "startingStrength",
-    });
+    const isA = sessionNumber % 2 === 1; // session 1 is Workout A
+    const letter = isA ? "A" : "B";
+    const date = isoDaysAgo(SS_SEED_DAYS_AGO[i]);
+    const lifts: SSSeedLiftKey[] = isA
+      ? ["squat", "press", "deadlift"]
+      : ["squat", "bench", "deadlift"];
+
+    for (const lift of lifts) {
+      // appearancesAfter — later sessions that also train this lift. Squat and
+      // deadlift appear every session; press on remaining A's, bench on B's.
+      let appearancesAfter: number;
+      if (lift === "squat" || lift === "deadlift") {
+        appearancesAfter = SS_SEED_SESSIONS - sessionNumber;
+      } else if (lift === "press") {
+        appearancesAfter = aSessions - 1 - aSeen;
+      } else {
+        appearancesAfter = bSessions - 1 - bSeen;
+      }
+      const weight = ssSeedWeight(workingWeights[lift] ?? 0, appearancesAfter);
+      workouts.push({
+        id: generateId(),
+        date,
+        exercise: SS_SEED_LIFT_NAME[lift],
+        week: `Workout ${letter}`,
+        cycle: sessionNumber,
+        sets: Array.from({ length: SS_SEED_LIFT_SETS[lift] }, () => ({
+          percentage: 100,
+          weight,
+          targetReps: "5",
+          actualReps: 5,
+          isAmrap: false,
+          isWarmup: false,
+        })),
+        notes: "",
+        program: "startingStrength",
+      });
+    }
+
+    if (isA) aSeen++;
+    else bSeen++;
   }
   return workouts;
 }
@@ -230,28 +281,30 @@ function buildStartingStrengthSquatHistory(): WorkoutLog[] {
 // 5/3/1: cycle 3 TM = 90, divide by 0.9 → 100 (clean derivation).
 // TM: final intensity 97.5, 1RM = 97.5 / 0.85 ≈ 114.7 → 115 kg.
 // Starting Strength has no 1RM concept — it is excluded here and seeded via
-// programs.startingStrength.workingWeights in buildSeedPatch instead.
+// programs.startingStrength in buildSeedPatch instead.
 const FINAL_SQUAT_1RM_KG: Record<"wendler531" | "texasMethod", number> = {
   wendler531: 100,
   texasMethod: 115,
 };
 
 export function buildSeedPatch(data: AppData, program: ProgramId): Partial<AppData> {
-  // Starting Strength: SS tracks working weights, not 1RMs. Seed the squat
-  // history and advance programs.startingStrength.workingWeights.squat to the
-  // final session's weight — lifts[].oneRepMax is intentionally left untouched
+  // Starting Strength: SS tracks working weights, not 1RMs. Seed all four
+  // barbell lifts' history, back-computed from the CURRENT working weights so
+  // the seed end-state equals today's working weight (no phantom jump), and
+  // leave workingWeights themselves untouched. sessionCount is advanced to the
+  // seeded session count so the next logged workout continues the cycle
+  // numbering instead of restarting at 1. lifts[].oneRepMax is left untouched
   // (SS never reads it).
   if (program === "startingStrength") {
+    const ss = data.programs.startingStrength;
     return {
-      workouts: buildStartingStrengthSquatHistory(),
+      workouts: buildStartingStrengthHistory(ss.workingWeights),
       programs: {
         ...data.programs,
         startingStrength: {
-          ...data.programs.startingStrength,
-          workingWeights: {
-            ...data.programs.startingStrength.workingWeights,
-            squat: ssSquatFinalWorkingWeight(),
-          },
+          ...ss,
+          sessionCount: SS_SEED_SESSIONS,
+          lastWorkout: SS_SEED_SESSIONS % 2 === 0 ? "B" : "A",
         },
       },
       settings: kgSettings(data.settings),
@@ -259,19 +312,34 @@ export function buildSeedPatch(data: AppData, program: ProgramId): Partial<AppDa
   }
 
   // 5/3/1 and Texas Method: both drive off lifts[].oneRepMax (TM per Phase 5E).
+  // The program's cycle / week counter is advanced past the seeded history so
+  // the next logged workout continues the numbering instead of colliding at 1.
   const workouts =
     program === "wendler531" ? buildWendler531SquatHistory() : buildTexasMethodSquatHistory();
+  const programs: ProgramsState =
+    program === "wendler531"
+      ? { ...data.programs, wendler531: { ...data.programs.wendler531, currentCycle: WENDLER_SEED_CYCLES + 1 } }
+      : { ...data.programs, texasMethod: { ...data.programs.texasMethod, weekIndex: TM_SQUAT_WEEKS + 1 } };
   return {
     workouts,
     lifts: setSquatOneRM(data.lifts, FINAL_SQUAT_1RM_KG[program]),
+    programs,
     settings: kgSettings(data.settings),
   };
 }
 
 export function buildWipePatch(data: AppData): Partial<AppData> {
+  // Reset the per-program cycle / week / session counters too, so a wipe fully
+  // undoes a prior seed (counters and history both return to a clean state).
   return {
     workouts: [],
     lifts: setSquatOneRM(data.lifts, STARTING_SQUAT_1RM_KG),
+    programs: {
+      ...data.programs,
+      wendler531: { ...data.programs.wendler531, currentCycle: 1 },
+      texasMethod: { ...data.programs.texasMethod, weekIndex: 1 },
+      startingStrength: { ...data.programs.startingStrength, sessionCount: 0, lastWorkout: null },
+    },
     settings: kgSettings(data.settings),
   };
 }

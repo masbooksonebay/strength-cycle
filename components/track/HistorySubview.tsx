@@ -59,25 +59,34 @@ export function HistorySubview() {
     setTagEdit(null);
   };
 
+  // Wave I #18 — History is scoped to the active program. Workouts are filtered
+  // to activeProgram FIRST; the lift / cycle / phase chips then apply on top, so
+  // "All" means "all workouts in the current program". A cross-program history
+  // view is intentionally out of scope.
+  const programWorkouts = useMemo(
+    () => data.workouts.filter((w) => w.program === data.activeProgram),
+    [data.workouts, data.activeProgram],
+  );
+
   const cycles = useMemo(() => {
     const set = new Set<number>();
-    data.workouts.forEach((w) => set.add(w.cycle));
+    programWorkouts.forEach((w) => set.add(w.cycle));
     return Array.from(set).sort((a, b) => b - a);
-  }, [data.workouts]);
+  }, [programWorkouts]);
 
   const liftOptions = useMemo(() => {
     const names = new Set<string>(data.lifts.map((l) => l.name));
-    data.workouts.forEach((w) => names.add(w.exercise));
+    programWorkouts.forEach((w) => names.add(w.exercise));
     return ["All", ...Array.from(names)];
-  }, [data.lifts, data.workouts]);
+  }, [data.lifts, programWorkouts]);
 
   const filtered = useMemo(() => {
-    let list = data.workouts;
+    let list = programWorkouts;
     if (liftFilter !== "All") list = list.filter((w) => w.exercise === liftFilter);
     if (cycleFilter !== "All") list = list.filter((w) => w.cycle === cycleFilter);
     if (phaseFilter !== "All") list = list.filter((w) => w.week === phaseFilter);
     return [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [data.workouts, liftFilter, cycleFilter, phaseFilter]);
+  }, [programWorkouts, liftFilter, cycleFilter, phaseFilter]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, WorkoutLog[]>();
@@ -113,7 +122,7 @@ export function HistorySubview() {
       <ScrollView contentContainerStyle={styles.content}>
         {filtered.length === 0 ? (
           <Text style={[styles.empty, { color: theme.textSecondary }]}>
-            {data.workouts.length === 0 ? "No workouts logged yet. Complete a workout from the Workout tab." : "No workouts match these filters."}
+            {programWorkouts.length === 0 ? "No workouts logged yet. Complete a workout from the Workout tab." : "No workouts match these filters."}
           </Text>
         ) : (
           Array.from(grouped.entries()).map(([date, workouts]) => (

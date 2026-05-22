@@ -5,10 +5,15 @@ import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
-import { PROGRAMS, SSLiftKey } from "../../lib/programs";
+import { PROGRAMS, SSLiftKey, ProgramId } from "../../lib/programs";
 import { spacing, borderRadius } from "../../constants/theme";
 import { useEffect, useState } from "react";
-import { buildSampleWorkouts, SAMPLE_DATA_ENABLED_KEY } from "../../lib/sampleData";
+import {
+  buildSampleWorkouts,
+  SAMPLE_DATA_ENABLED_KEY,
+  sampleDataProgramsState,
+  clearedProgramsState,
+} from "../../lib/sampleData";
 import { buildSeedPatch, buildWipePatch } from "../../lib/devSeed";
 import {
   BAR_PRESETS,
@@ -55,8 +60,19 @@ function Row({ label, right, theme, last, info, onPress }: { label: string; righ
   );
 }
 
+// Program-aware Load Sample Data blurb — the count + unit each program's
+// buildSampleWorkouts actually produces (Wave I #10).
+const SAMPLE_DATA_DESC: Record<ProgramId, string> = {
+  wendler531:
+    "Seeds 12 cycles of 5/3/1 sample history to populate Progress tab charts. Toggle off to clear all seeded data.",
+  texasMethod:
+    "Seeds 4 weeks of Texas Method sample history to populate Progress tab charts. Toggle off to clear all seeded data.",
+  startingStrength:
+    "Seeds 9 sessions of 3x5 Strength sample history to populate Progress tab charts. Toggle off to clear all seeded data.",
+};
+
 function DeveloperSection() {
-  const { data, theme, replaceSampleWorkouts, clearSampleWorkouts } = useApp();
+  const { data, theme, applyDevPatch } = useApp();
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
@@ -78,7 +94,18 @@ function DeveloperSection() {
         data.activeProgram,
         data.settings.units,
       );
-      replaceSampleWorkouts(samples);
+      // Merge sample workouts with any real history and advance the active
+      // program's cycle counter, so a later live workout continues the cycle
+      // numbering instead of restarting at 1 (Wave I #11 / #12). Both go in one
+      // atomic patch to avoid a stale-closure double-persist.
+      const real = data.workouts.filter((w) => w._isSampleData !== true);
+      const merged = [...real, ...samples].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
+      applyDevPatch({
+        workouts: merged,
+        programs: sampleDataProgramsState(data.activeProgram, data.programs),
+      });
       persistEnabled(true);
       Alert.alert("Sample data loaded", "Sample data loaded. Check Track → Progress to see charts populate.");
     } else {
@@ -91,7 +118,10 @@ function DeveloperSection() {
             text: "OK",
             style: "destructive",
             onPress: () => {
-              clearSampleWorkouts();
+              applyDevPatch({
+                workouts: data.workouts.filter((w) => w._isSampleData !== true),
+                programs: clearedProgramsState(data.programs),
+              });
               persistEnabled(false);
             },
           },
@@ -109,7 +139,7 @@ function DeveloperSection() {
           <View style={{ flex: 1, paddingRight: spacing.md }}>
             <Text style={[styles.rowLabel, { color: theme.text }]}>Load Sample Data</Text>
             <Text style={[styles.devDesc, { color: theme.textSecondary }]}>
-              Seeds 12 cycles of sample workout data to test Progress tab charts. Toggle off to clear all seeded data.
+              {SAMPLE_DATA_DESC[data.activeProgram]}
             </Text>
           </View>
           <Switch value={enabled} onValueChange={onToggle} trackColor={{ true: theme.accent }} />

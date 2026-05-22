@@ -1,7 +1,7 @@
 import { WorkoutLog, SetLog } from "./store";
 import { calcWeight } from "./program";
 import { RoundingMode, WeightUnit } from "./plates";
-import { ProgramId, TexasMethodState, DEFAULT_TEXAS_METHOD_STATE } from "./programs";
+import { ProgramId, ProgramsState, TexasMethodState, DEFAULT_TEXAS_METHOD_STATE } from "./programs";
 import { getDaySets, TM_LIFTS, TmDay, TmLift } from "./programs/texasMethod";
 
 export const SAMPLE_DATA_ENABLED_KEY = "sc_dev_sample_data_enabled";
@@ -24,6 +24,9 @@ const TM_INCREMENT: Record<LiftName, number> = {
   Deadlift: 10,
   "Overhead Press": 5,
 };
+
+// 5/3/1 sample history spans this many 4-week cycles.
+const WENDLER_SAMPLE_CYCLES = 12;
 
 // Squat TM reset scenario: Cycle 8 AMRAP fails (3 reps on 5/3/1), so Cycle 9 resets to
 // ~90% of Cycle 8 (345 → 340), then resumes +10/cycle.
@@ -90,9 +93,9 @@ export function buildSampleWorkouts(
   // Total span = 12 cycles * 3 weeks = 36 week-slots; with deload week between cycles,
   // effective calendar span is 12*4 = 48 weeks ≈ the requested ~52.
   const endTs = Date.now() - 3 * dayMs;
-  const maxSlot = 11 * 4 + 2; // cycle 12 (index 11) × 4 + week index 2
+  const maxSlot = (WENDLER_SAMPLE_CYCLES - 1) * 4 + 2; // last cycle index × 4 + week index 2
 
-  for (let c = 1; c <= 12; c++) {
+  for (let c = 1; c <= WENDLER_SAMPLE_CYCLES; c++) {
     for (let wIdx = 0; wIdx < AMRAP_WEEKS.length; wIdx++) {
       const wk = AMRAP_WEEKS[wIdx];
       const slot = (c - 1) * 4 + wIdx;
@@ -295,4 +298,40 @@ export function buildTexasMethodSampleWorkouts(
 
 export function stripSampleWorkouts(workouts: WorkoutLog[]): WorkoutLog[] {
   return workouts.filter((w) => w._isSampleData !== true);
+}
+
+// ─── Program-state counter sync (Wave I #11 / #12) ──────────────────────────
+// buildSampleWorkouts seeds history with cycle numbers 1..N, but the cycle
+// number a NEWLY logged live workout receives is driven by the program-state
+// counter (5/3/1 currentCycle, TM weekIndex, SS sessionCount). Loading sample
+// data without advancing that counter makes the next live workout restart at
+// cycle 1 — colliding with seeded cycle 1, inverting History's cycle order, and
+// throwing the SS session tallies (chart vs Workout Count) off by one. These
+// helpers advance / reset the program counters alongside the load / clear.
+export function sampleDataProgramsState(program: ProgramId, programs: ProgramsState): ProgramsState {
+  if (program === "startingStrength") {
+    return {
+      ...programs,
+      startingStrength: {
+        ...programs.startingStrength,
+        sessionCount: SS_SAMPLE_SESSIONS,
+        lastWorkout: SS_SAMPLE_SESSIONS % 2 === 0 ? "B" : "A",
+      },
+    };
+  }
+  if (program === "texasMethod") {
+    return { ...programs, texasMethod: { ...programs.texasMethod, weekIndex: TM_SAMPLE_WEEKS + 1 } };
+  }
+  return { ...programs, wendler531: { ...programs.wendler531, currentCycle: WENDLER_SAMPLE_CYCLES + 1 } };
+}
+
+// Reset all three program counters to their defaults — paired with clearing
+// sample data so a clear fully restores the pre-seed state.
+export function clearedProgramsState(programs: ProgramsState): ProgramsState {
+  return {
+    ...programs,
+    wendler531: { ...programs.wendler531, currentCycle: 1 },
+    texasMethod: { ...programs.texasMethod, weekIndex: 1 },
+    startingStrength: { ...programs.startingStrength, sessionCount: 0, lastWorkout: null },
+  };
 }
