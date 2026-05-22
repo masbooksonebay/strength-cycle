@@ -6,12 +6,17 @@ import { WorkoutLog } from "../../lib/store";
 import { calcE1RM, WEEKS } from "../../lib/program";
 import { ProgramId } from "../../lib/programs";
 
-// Phase filter / tag-edit options per program. 5/3/1 keeps its WEEKS array
-// verbatim; TM uses the three day phases its workouts log under.
+// Phase filter / tag-edit options per program — derived from activeProgram so
+// every program contributes its own phase vocabulary. 5/3/1 keeps its WEEKS
+// array verbatim; TM uses the three day phases its workouts log under; SS uses
+// its A/B workout labels.
 const TM_PHASES = ["Volume Day", "Recovery Day", "Intensity Day"] as const;
+const SS_PHASES = ["Workout A", "Workout B"] as const;
 
 function phasesForProgram(program: ProgramId): readonly string[] {
-  return program === "texasMethod" ? TM_PHASES : WEEKS;
+  if (program === "texasMethod") return TM_PHASES;
+  if (program === "startingStrength") return SS_PHASES;
+  return WEEKS;
 }
 import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../common/NumericInputWithDone";
