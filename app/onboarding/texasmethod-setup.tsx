@@ -14,7 +14,7 @@ import { spacing, borderRadius } from "../../constants/theme";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 import { seedTexasMethodState } from "../../lib/programs/texasMethod";
 
-const LIFT_NAMES = ["Squat", "Bench Press", "Overhead Press", "Deadlift"] as const;
+const LIFT_NAMES = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as const;
 
 export default function TexasMethodSetup() {
   const { data, theme, completeOnboarding } = useApp();
@@ -26,17 +26,20 @@ export default function TexasMethodSetup() {
   const [values, setValues] = useState<Record<string, string>>({
     Squat: "",
     "Bench Press": "",
-    "Overhead Press": "",
     Deadlift: "",
+    "Overhead Press": "",
   });
 
-  const finish = () => {
+  const finish = (skip: boolean) => {
     // Phase 5E: write 1RM directly to lifts (single source of truth). TM state's
     // intensityWeights seed from the freshly-set lifts inside seedTexasMethodState.
-    const nextLifts = data.lifts.map((l) => {
-      const v = parseFloat(values[l.name]);
-      return v > 0 ? { ...l, oneRepMax: v } : l;
-    });
+    // Skip preserves the existing lifts as-is — it never overwrites a 1RM with 0.
+    const nextLifts = skip
+      ? data.lifts
+      : data.lifts.map((l) => {
+          const v = parseFloat(values[l.name]);
+          return v > 0 ? { ...l, oneRepMax: v } : l;
+        });
     const seeded = seedTexasMethodState({
       lifts: nextLifts,
       precision: data.settings.precision,
@@ -93,11 +96,14 @@ export default function TexasMethodSetup() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: theme.accent }]}
-          onPress={finish}
+          onPress={() => finish(false)}
           accessibilityRole="button"
           accessibilityLabel="Get started"
         >
           <Text style={styles.btnText}>Get Started</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => finish(true)} style={styles.skip} accessibilityRole="button">
+          <Text style={[styles.skipText, { color: theme.textSecondary }]}>Skip — I'll set later</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -137,4 +143,6 @@ const styles = StyleSheet.create({
   footer: { padding: spacing.lg, paddingBottom: spacing.xl + 8 },
   btn: { borderRadius: borderRadius.sm, height: 56, alignItems: "center", justifyContent: "center" },
   btnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  skip: { marginTop: spacing.md, alignItems: "center" },
+  skipText: { fontSize: 14, fontWeight: "600" },
 });

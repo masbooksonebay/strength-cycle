@@ -21,16 +21,20 @@ const PROGRAM_ROW_SUBTITLE: Record<ProgramId, string> = {
   startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
 };
 
-// "Seeded" = the user has supplied real numbers for this program. 5/3/1 and
+// "Configured" = the user has supplied real numbers for this program. 5/3/1 and
 // Texas Method share lifts[name].oneRepMax as their single source of truth
-// (Phase 5E), so a lift with a non-default 1RM means the user has touched the
-// values. Starting Strength is independent — it carries its own workingWeights
-// slice and never writes lifts[].oneRepMax — so its seeded signal is startDate,
-// which finishStartingStrengthSetup stamps when the SS setup screen is
-// submitted. Without this branch a user who had set 1RMs for another program
-// would be wrongly treated as having seeded SS and skip the SS setup screen.
-function isProgramSeeded(id: ProgramId, data: AppData): boolean {
-  if (id === "startingStrength") return data.programs.startingStrength.startDate !== "";
+// (Phase 5E); DEFAULT_LIFTS seeds every 1RM at 100, so a lift with a 1RM other
+// than 100 means the user has entered real values. Starting Strength is
+// independent — it carries its own workingWeights slice, which defaults to 0
+// and is populated only at SS setup, so a non-zero working weight is its
+// configured signal. Checking workingWeights directly (rather than a proxy such
+// as startDate) means a program reads as configured precisely when its values
+// are actually present — which is what lets the switcher bypass setup.
+function isProgramConfigured(data: AppData, id: ProgramId): boolean {
+  if (id === "startingStrength") {
+    const ww = data.programs.startingStrength.workingWeights;
+    return ww.squat > 0 || ww.bench > 0 || ww.deadlift > 0 || ww.press > 0;
+  }
   return data.lifts.some((l) => l.oneRepMax !== 100);
 }
 
@@ -40,13 +44,14 @@ export default function ProgramSwitcher() {
 
   const handleSelect = (id: ProgramId) => {
     if (id === data.activeProgram) return;
-    if (isProgramSeeded(id, data)) {
+    if (isProgramConfigured(data, id)) {
+      // Already configured — switch and drop straight into the Workout tab,
+      // skipping setup entirely.
       switchProgram(id);
-      // Already-seeded Starting Strength drops the user straight into their next
-      // workout; 5/3/1 / TM return to Settings (their existing post-switch path).
-      router.replace(id === "startingStrength" ? "/(tabs)" : "/(tabs)/settings");
+      router.replace("/(tabs)");
       return;
     }
+    // Never configured — run the first-time setup flow for this program.
     const meta = PROGRAMS[id];
     router.replace(`/onboarding/${meta.setupRoute}?return=settings`);
   };
