@@ -29,6 +29,7 @@ import {
 } from "../../../lib/programs/texasMethod";
 import { spacing, borderRadius } from "../../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../../components/TimerPill";
+import { StartingWeightsNote } from "../../../components/workout/StartingWeightsNote";
 import { useTimer } from "../../../lib/timer";
 import { DoneKeyboardToolbar } from "../../../components/common/DoneKeyboardToolbar";
 import { SheetBackdrop } from "../../../components/common/SheetBackdrop";
@@ -269,6 +270,8 @@ export default function TexasMethodWorkoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <StartingWeightsNote programId="texasMethod" />
+
         {liftsToShow.map((lift) => {
           const sets = getDaySets({
             day,

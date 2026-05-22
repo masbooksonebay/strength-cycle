@@ -9,6 +9,7 @@ import { getLastReps, generateId, WorkoutLog, SetLog } from "../../../lib/store"
 import { calculatePlates, formatPlateBreakdown, formatWeight } from "../../../lib/plates";
 import { spacing, borderRadius } from "../../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../../components/TimerPill";
+import { StartingWeightsNote } from "../../../components/workout/StartingWeightsNote";
 import { useTimer } from "../../../lib/timer";
 import { NumericInputWithDone } from "../../../components/common/NumericInputWithDone";
 import { DoneKeyboardToolbar } from "../../../components/common/DoneKeyboardToolbar";
@@ -196,6 +197,8 @@ export default function Wendler531WorkoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <StartingWeightsNote programId="wendler531" />
+
         {programSets.map((set, i) => {
           const weight = calcWeight(tm, set.percentage, precision, rounding);
           const lastAmrap = getLastReps(data.workouts, lift.name, week, set.percentage);

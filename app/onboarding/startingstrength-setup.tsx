@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -11,7 +12,6 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
-import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 
 // The four barbell lifts seeded at SS onboarding. `key` matches the SSLiftKey
 // the finalizer expects; `label` matches the canonical display names used by
@@ -83,7 +83,7 @@ export default function StartingStrengthSetup() {
               <Text style={[styles.rmTag, { color: theme.accent }]}>3×5</Text>
             </View>
             <View style={styles.inputWrap}>
-              <NumericInputWithDone
+              <TextInput
                 style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]}
                 value={values[key]}
                 onChangeText={(t) => setValues((v) => ({ ...v, [key]: t }))}

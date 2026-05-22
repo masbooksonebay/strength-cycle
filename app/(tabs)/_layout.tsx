@@ -57,9 +57,16 @@ export default function TabLayout() {
         }}
       />
       {/* Per-program workout screens live under _screens/ but are mounted by
-          the index.tsx router, not directly. Hide them from the tab bar. */}
+          the index.tsx router, not directly — they should never ship as tabs.
+          In a production build every _screens route is hidden via href:null.
+          In a __DEV__ build the StartingStrength screen is intentionally left
+          auto-registered (visible) for quick manual navigation; that entry is
+          re-hidden for production. */}
       <Tabs.Screen name="_screens/Wendler531WorkoutScreen" options={{ href: null }} />
       <Tabs.Screen name="_screens/TexasMethodWorkoutScreen" options={{ href: null }} />
+      {!__DEV__ && (
+        <Tabs.Screen name="_screens/StartingStrengthWorkoutScreen" options={{ href: null }} />
+      )}
     </Tabs>
   );
 }

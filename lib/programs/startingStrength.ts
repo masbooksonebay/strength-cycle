@@ -41,7 +41,7 @@ export { DEFAULT_STARTING_STRENGTH_STATE } from "./types";
 
 export const STARTING_STRENGTH_METADATA: ProgramMetadata = {
   id: "startingStrength",
-  displayName: "Starting Strength",
+  displayName: "3x5 Strength",
   shortDescription: "Novice linear progression · A/B alternation · 3x/week",
   longDescription:
     "Rippetoe's novice linear progression. Two workouts alternate 3x/week with per-session increments on every lift. Best for true novices building base strength.",

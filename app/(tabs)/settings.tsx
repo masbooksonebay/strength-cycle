@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, KeyboardAvoidingView, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as StoreReview from "expo-store-review";
+import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
@@ -20,6 +21,7 @@ import {
   formatWeight,
 } from "../../lib/plates";
 import { SHOW_IAP_UI } from "../../lib/config";
+import { FEEDBACK_EMAIL } from "../../lib/constants";
 import { ProgramGuide } from "../../components/ProgramGuide";
 import { TexasMethodGuide } from "../../components/TexasMethodGuide";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
@@ -182,16 +184,26 @@ export default function SettingsScreen() {
   const saveRM = () => { if (editingRM && rmValue) { const v = parseFloat(rmValue); if (v > 0) updateLift(editingRM, { oneRepMax: v }); } setEditingRM(null); };
 
   const handleSendFeedback = () => {
-    const email = "strengthcyclestudios@gmail.com";
+    const version = Constants.expoConfig?.version ?? "1.0.4";
+    const deviceModel = Constants.deviceName ?? "unknown";
     const subject = encodeURIComponent("Strength Cycle Feedback");
-    Linking.openURL(`mailto:${email}?subject=${subject}`);
+    // Trailing device + version block gives triage context without the user
+    // having to type it; the leading blank lines leave room to write above it.
+    const body = encodeURIComponent(
+      `\n\n---\nApp version: ${version}\nDevice: ${Platform.OS} ${deviceModel}\n`,
+    );
+    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
   };
 
   const handleRateApp = async () => {
     try {
       if (await StoreReview.hasAction()) {
         StoreReview.requestReview();
+        return;
       }
+      // hasAction() is false on the simulator and whenever the native review
+      // prompt is unavailable — fall back to the App Store review page.
+      await Linking.openURL("https://apps.apple.com/app/id6762101377?action=write-review");
     } catch {}
   };
 
@@ -362,15 +374,12 @@ export default function SettingsScreen() {
         <Row label="Rate the App" theme={theme} last onPress={handleRateApp} right={<Ionicons name="star-outline" size={18} color={theme.textSecondary} />} />
       </Section>
 
-      <Section title="Data" theme={theme}>
-        <Row label="Backup Data" theme={theme} right={<Ionicons name="download-outline" size={18} color={theme.textSecondary} />} />
-        <Row label="Restore Data" theme={theme} last right={<Ionicons name="push-outline" size={18} color={theme.textSecondary} />} />
-      </Section>
-
       {__DEV__ && <DeveloperSection />}
       {__DEV__ && <DeveloperToolsSection />}
 
-      <Text style={[styles.version, { color: theme.textSecondary }]}>Strength Cycle v1.0.0</Text>
+      <Text style={[styles.version, { color: theme.textSecondary }]}>
+        Strength Cycle v{Constants.expoConfig?.version ?? "1.0.4"}
+      </Text>
       <View style={{ height: 40 }} />
 
       {/* Rest Timer Modal */}

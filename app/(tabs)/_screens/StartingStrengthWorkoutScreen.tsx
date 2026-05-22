@@ -9,7 +9,6 @@ import {
   SSPrescription,
   StartingStrengthState,
   SS_LIFT_DISPLAY_NAME,
-  SS_PHASE_DESCRIPTIONS,
   getCurrentWorkoutLifts,
   getWorkoutPrescription,
   registerSetResult,
@@ -17,6 +16,7 @@ import {
 } from "../../../lib/programs/startingStrength";
 import { spacing, borderRadius } from "../../../constants/theme";
 import { TimerPill, TimerStartButton } from "../../../components/TimerPill";
+import { StartingWeightsNote } from "../../../components/workout/StartingWeightsNote";
 import { useTimer } from "../../../lib/timer";
 
 // Per-set local logging state: whether the user tapped the set complete, and
@@ -159,17 +159,6 @@ export default function StartingStrengthWorkoutScreen() {
 
       <View style={styles.headerBlock}>
         <Text style={[styles.programName, { color: theme.text }]}>3x5 Strength</Text>
-        <Text style={[styles.programSub, { color: theme.textSecondary }]}>
-          Inspired by Rippetoe&apos;s methodology
-        </Text>
-        <View style={styles.pillRow}>
-          <View style={[styles.phasePill, { borderColor: theme.border, backgroundColor: theme.card }]}>
-            <Ionicons name="trending-up" size={13} color={theme.accent} />
-            <Text style={[styles.phasePillText, { color: theme.textSecondary }]}>
-              Phase {ss.currentPhase}: {SS_PHASE_DESCRIPTIONS[ss.currentPhase]}
-            </Text>
-          </View>
-        </View>
       </View>
 
       <View style={[styles.workoutBanner, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -178,6 +167,8 @@ export default function StartingStrengthWorkoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <StartingWeightsNote programId="startingStrength" />
+
         {deloadNames.length > 0 && (
           <View
             style={[styles.deloadBanner, { backgroundColor: theme.accent + "22", borderColor: theme.accent }]}
@@ -313,18 +304,6 @@ const styles = StyleSheet.create({
   brandLine: { width: "100%", height: 2 },
   headerBlock: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   programName: { fontSize: 20, fontWeight: "800" },
-  programSub: { fontSize: 12, fontWeight: "600", marginTop: 2, letterSpacing: 0.3 },
-  pillRow: { flexDirection: "row", marginTop: spacing.sm },
-  phasePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  phasePillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.4 },
   workoutBanner: {
     flexDirection: "row",
     alignItems: "center",
