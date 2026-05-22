@@ -1,11 +1,46 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
+import { ProgramId, PROGRAMS } from "../../lib/programs";
 
-export default function OnboardingWelcome() {
+const PROGRAM_LIST: ProgramId[] = ["wendler531", "startingStrength", "texasMethod"];
+
+// User-facing card title — pulled straight from each program's metadata.
+const PROGRAM_CARD_TITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.displayName,
+  texasMethod: PROGRAMS.texasMethod.displayName,
+  startingStrength: PROGRAMS.startingStrength.displayName,
+};
+
+// User-facing card subtitle (the short meta line under the title).
+const PROGRAM_CARD_SUBTITLE: Record<ProgramId, string> = {
+  wendler531: PROGRAMS.wendler531.shortDescription,
+  texasMethod: PROGRAMS.texasMethod.shortDescription,
+  startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
+};
+
+const PROGRAM_LONG_COPY: Record<ProgramId, string> = {
+  wendler531:
+    "Four-week cycles, AMRAP top sets, training max progression. Best for intermediate lifters who want a sustainable long-term program.",
+  texasMethod:
+    "Volume / Recovery / Intensity weekly structure with 5RM PR attempts. Best for post-novice lifters ready for harder weekly progression.",
+  startingStrength:
+    "Inspired by Rippetoe's methodology. A/B workouts alternate 3x/week with per-session weight increases on every lift. Best for true novices in their first 3–9 months of training.",
+};
+
+export default function ProgramSelect() {
   const { theme } = useApp();
   const router = useRouter();
+  const [selected, setSelected] = useState<ProgramId>("wendler531");
+
+  const continueNext = () => {
+    if (selected === "wendler531") router.push("/onboarding/wendler531-setup");
+    else if (selected === "texasMethod") router.push("/onboarding/texasmethod-setup");
+    else router.push("/onboarding/startingstrength-setup");
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -14,19 +49,49 @@ export default function OnboardingWelcome() {
       </View>
       <View style={[styles.brandLine, { backgroundColor: theme.accent }]} />
 
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.text }]}>Welcome</Text>
-        <Text style={[styles.copy, { color: theme.textSecondary }]}>
-          Strength Cycle is a multi-program tracker for serious lifters. Choose the program you'll run.
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.title, { color: theme.text }]}>Choose your program</Text>
+
+        {PROGRAM_LIST.map((id) => {
+          const isSelected = selected === id;
+          return (
+            <TouchableOpacity
+              key={id}
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: isSelected ? theme.accent : theme.border,
+                  borderWidth: isSelected ? 2 : 1,
+                },
+              ]}
+              onPress={() => setSelected(id)}
+              activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={`${PROGRAM_CARD_TITLE[id]} program`}
+            >
+              <View style={styles.cardHeader}>
+                <Text style={[styles.cardTitle, { color: theme.text }]}>{PROGRAM_CARD_TITLE[id]}</Text>
+                {isSelected && <Ionicons name="checkmark-circle" size={24} color={theme.accent} />}
+              </View>
+              <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{PROGRAM_CARD_SUBTITLE[id]}</Text>
+              <Text style={[styles.cardDesc, { color: theme.textSecondary }]}>{PROGRAM_LONG_COPY[id]}</Text>
+            </TouchableOpacity>
+          );
+        })}
+
+        <Text style={[styles.hint, { color: theme.textSecondary }]}>
+          You can change your program anytime in Settings.
         </Text>
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: theme.accent }]}
-          onPress={() => router.push("/onboarding/program")}
+          onPress={continueNext}
           accessibilityRole="button"
-          accessibilityLabel="Continue to program selection"
+          accessibilityLabel={`Continue with ${PROGRAM_CARD_TITLE[selected]}`}
         >
           <Text style={styles.btnText}>Continue</Text>
         </TouchableOpacity>
@@ -40,12 +105,19 @@ const styles = StyleSheet.create({
   brandHeader: { alignItems: "center", paddingTop: 52, paddingBottom: spacing.xs + 2 },
   brandText: { fontSize: 22, fontWeight: "900", letterSpacing: 4 },
   brandLine: { width: "100%", height: 2 },
-  // Title sits in roughly the top third (paddingTop). Subtitle follows directly.
-  // Below is intentional empty space — clean slot for a future custom illustration
-  // in 1.0.5 without restructuring this layout.
-  content: { flex: 1, alignItems: "center", paddingTop: "18%", paddingHorizontal: spacing.xl },
-  title: { fontSize: 56, fontWeight: "900", marginBottom: spacing.md, letterSpacing: 0.5 },
-  copy: { fontSize: 16, lineHeight: 24, textAlign: "center" },
+  content: { padding: spacing.lg, paddingBottom: spacing.xl },
+  title: { fontSize: 26, fontWeight: "900", marginTop: spacing.md, marginBottom: spacing.lg },
+  subtitle: { fontSize: 14, marginBottom: spacing.lg },
+  hint: { fontSize: 14, textAlign: "center", marginTop: spacing.sm },
+  card: {
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  cardTitle: { fontSize: 18, fontWeight: "800" },
+  cardMeta: { fontSize: 12, fontWeight: "600", marginBottom: spacing.sm, letterSpacing: 0.3 },
+  cardDesc: { fontSize: 14, lineHeight: 20 },
   footer: { padding: spacing.lg, paddingBottom: spacing.xl + 8 },
   btn: { borderRadius: borderRadius.sm, height: 56, alignItems: "center", justifyContent: "center" },
   btnText: { color: "#fff", fontSize: 17, fontWeight: "700" },
