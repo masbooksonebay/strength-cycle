@@ -151,7 +151,7 @@ const TEXAS_METHOD_RULES: RulesSection[] = [
   {
     title: "WHO IS THIS FOR",
     body:
-      "Texas Method is for INTERMEDIATE lifters (12-24+ months training, post-novice). If you can still add weight to the bar every workout, you're not done with linear progression yet — run Starting Strength or another LP first.\n\nThe PR attempt on Intensity Day is supposed to be HARD. If you're hitting 8-10 easy reps, your training max is too low.",
+      "Texas Method is for INTERMEDIATE lifters (12-24+ months training, post-novice). If you can still add weight to the bar every workout, you're not done with linear progression yet — run 3x5 Strength or another LP first.\n\nThe PR attempt on Intensity Day is supposed to be HARD. If you're hitting 8-10 easy reps, your training max is too low.",
   },
   {
     title: "POWER CLEAN (OPTIONAL)",
@@ -164,7 +164,7 @@ const STARTING_STRENGTH_RULES: RulesSection[] = [
   {
     title: "LINEAR PROGRESSION — THE CORE ENGINE",
     body:
-      "Starting Strength is novice linear progression: add a small fixed amount of weight to every lift, every session, for as long as you can recover from it. The standard jump is +5 lbs / +2.5 kg per lift, per session. This is the fastest strength progress you will ever make — a true beginner can add weight every single workout for months. Don't add volume, don't add days, don't get clever; the simplicity is the point.",
+      "3x5 Strength is a novice linear progression program, inspired by Mark Rippetoe's coaching work: add a small fixed amount of weight to every lift, every session, for as long as you can recover from it. The standard jump is +5 lbs / +2.5 kg per lift, per session. This is the fastest strength progress you will ever make — a true beginner can add weight every single workout for months. Don't add volume, don't add days, don't get clever; the simplicity is the point.",
   },
   {
     title: "THE A/B WORKOUT STRUCTURE",
@@ -174,7 +174,7 @@ const STARTING_STRENGTH_RULES: RulesSection[] = [
   {
     title: "WORKING WEIGHTS, NOT TRAINING MAXES",
     body:
-      "Starting Strength has no Training Max, no 1RM, and no percentage math. It tracks Working Weights — the literal load on the bar for your 3x5. Last session's weight plus the increment is next session's weight. This is why Settings shows Working Weights for this program where 5/3/1 and Texas Method show 1 Rep Maxes: the working weight is the program's source of truth.",
+      "3x5 Strength has no Training Max, no 1RM, and no percentage math. It tracks Working Weights — the literal load on the bar for your 3x5. Last session's weight plus the increment is next session's weight. This is why Settings shows Working Weights for this program where 5/3/1 and Texas Method show 1 Rep Maxes: the working weight is the program's source of truth.",
   },
   {
     title: "FAILURE & THE DELOAD PROTOCOL",

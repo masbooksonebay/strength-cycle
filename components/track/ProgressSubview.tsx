@@ -659,7 +659,7 @@ function SSWorkoutCountSection() {
     <View style={styles.section}>
       <SectionHeader title="Workout Count" subtitle="Completed A / B sessions" />
       {counts.total === 0 ? (
-        <EmptyState message="No Starting Strength workouts logged yet." />
+        <EmptyState message="No 3x5 Strength workouts logged yet." />
       ) : (
         <View style={styles.statRow}>
           <StatCard label="WORKOUT A" value={String(counts.a)} theme={theme} />

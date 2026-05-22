@@ -36,7 +36,7 @@ const SECTIONS: { key: SectionKey; title: string }[] = [
 
 const GLOSSARY: { term: string; def: string }[] = [
   { term: "Linear Progression (LP)", def: "Adding a fixed amount of weight to a lift every session. The defining feature of a novice program." },
-  { term: "Working Weight", def: "The actual load on the bar for your 3x5 work sets. Starting Strength's source of truth — there is no Training Max or percentage math." },
+  { term: "Working Weight", def: "The actual load on the bar for your 3x5 work sets — the source of truth in 3x5 Strength. There is no Training Max or percentage math." },
   { term: "Workout A / Workout B", def: "The two alternating full-body sessions. A = Squat / Overhead Press / Deadlift; B = Squat / Bench Press / Deadlift." },
   { term: "3x5", def: "Three sets of five reps across — the same weight on every set. The deadlift is the exception, trained at 1x5." },
   { term: "Deload", def: "After two consecutive failed sessions on a lift, dropping that lift roughly 10% and rebuilding." },
@@ -46,8 +46,8 @@ const GLOSSARY: { term: string; def: string }[] = [
 
 const LEARN_MORE_LINKS: { label: string; desc: string; url: string }[] = [
   {
-    label: "Starting Strength: Basic Barbell Training",
-    desc: "Mark Rippetoe — the foundational text where Starting Strength is codified (3rd Edition)",
+    label: "Basic Barbell Training by Mark Rippetoe",
+    desc: "Mark Rippetoe's foundational text on novice barbell training and linear progression (3rd Edition)",
     url: "https://www.amazon.com/dp/0982522738?tag=profpeptide-20",
   },
 ];
@@ -76,7 +76,7 @@ export function StartingStrengthGuide({ theme }: { theme: Theme }) {
               <View style={[styles.sectionBody, { borderTopColor: theme.border }]}>
                 {key === "overview" && (
                   <Text style={[styles.para, body]}>
-                    Starting Strength is Mark Rippetoe's novice linear progression — the most efficient way for a true beginner to get strong. Two alternating full-body workouts, three days a week, adding weight to every lift every session for as long as recovery allows. It is deliberately simple: the gains come from progressive overload and consistency, not from clever programming.
+                    3x5 Strength is a novice linear progression program, inspired by Mark Rippetoe's coaching work — the most efficient way for a true beginner to get strong. Two alternating full-body workouts, three days a week, adding weight to every lift every session for as long as recovery allows. It is deliberately simple: the gains come from progressive overload and consistency, not from clever programming.
                   </Text>
                 )}
 
@@ -102,7 +102,7 @@ export function StartingStrengthGuide({ theme }: { theme: Theme }) {
                 {key === "workingWeights" && (
                   <View>
                     <Text style={[styles.para, body]}>
-                      Starting Strength has no Training Max, no 1 Rep Max, and no percentage math. It tracks Working Weights — the literal load on the bar for your 3x5. Last session's weight plus the increment is next session's weight.
+                      3x5 Strength has no Training Max, no 1 Rep Max, and no percentage math. It tracks Working Weights — the literal load on the bar for your 3x5. Last session's weight plus the increment is next session's weight.
                     </Text>
                     <Text style={[styles.para, body, { marginTop: spacing.sm }]}>
                       This is why Settings shows Working Weights for this program, where 5/3/1 and Texas Method show 1 Rep Maxes. The working weight is the program's source of truth — nothing is calculated from a max.
@@ -165,7 +165,7 @@ export function StartingStrengthGuide({ theme }: { theme: Theme }) {
                       Educational content only. Consult a qualified coach for personalized form feedback.
                     </Text>
                     <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
-                      Strength Cycle is an independent training tool. Starting Strength is an established programming methodology. Not affiliated with any program creator referenced. Use of this app is for personal training tracking purposes only.
+                      Strength Cycle is an independent training tool. 3x5 Strength is its own program, inspired by Mark Rippetoe's coaching work on novice linear progression. Not affiliated with or endorsed by any coach referenced. Use of this app is for personal training tracking purposes only.
                     </Text>
                   </View>
                 )}

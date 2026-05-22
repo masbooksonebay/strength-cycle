@@ -391,13 +391,13 @@ export default function SettingsScreen() {
         )}
         {data.activeProgram === "startingStrength" && (
           <>
-            <Row label="Deload Percentage" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the deload percentage will arrive in a future update. Starting Strength currently deloads a stalled lift by 10%.")} right={
+            <Row label="Deload Percentage" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the deload percentage will arrive in a future update. 3x5 Strength currently deloads a stalled lift by 10%.")} right={
               <View style={styles.tapRow}>
                 <Text style={[styles.valueText, { color: theme.accent }]}>10% (default)</Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
               </View>
             } />
-            <Row label="Stall Threshold" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the stall threshold will arrive in a future update. Starting Strength currently deloads a lift after 2 consecutive failed sessions.")} right={
+            <Row label="Stall Threshold" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the stall threshold will arrive in a future update. 3x5 Strength currently deloads a lift after 2 consecutive failed sessions.")} right={
               <View style={styles.tapRow}>
                 <Text style={[styles.valueText, { color: theme.accent }]}>2 failed sessions (default)</Text>
                 <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
