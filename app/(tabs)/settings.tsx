@@ -24,6 +24,7 @@ import { SHOW_IAP_UI } from "../../lib/config";
 import { FEEDBACK_EMAIL } from "../../lib/constants";
 import { ProgramGuide } from "../../components/ProgramGuide";
 import { TexasMethodGuide } from "../../components/TexasMethodGuide";
+import { StartingStrengthGuide } from "../../components/StartingStrengthGuide";
 import { NumericInputWithDone } from "../../components/common/NumericInputWithDone";
 import { SheetBackdrop } from "../../components/common/SheetBackdrop";
 
@@ -541,7 +542,13 @@ export default function SettingsScreen() {
             <TouchableOpacity onPress={() => setShowGuide(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.guideContent}>
-            {data.activeProgram === "texasMethod" ? <TexasMethodGuide theme={theme} /> : <ProgramGuide theme={theme} />}
+            {data.activeProgram === "texasMethod" ? (
+              <TexasMethodGuide theme={theme} />
+            ) : data.activeProgram === "startingStrength" ? (
+              <StartingStrengthGuide theme={theme} />
+            ) : (
+              <ProgramGuide theme={theme} />
+            )}
           </ScrollView>
         </View>
       </Modal>

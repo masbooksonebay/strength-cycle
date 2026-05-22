@@ -40,7 +40,7 @@ import { fetch as expoFetch } from "expo/fetch";
 import { useApp } from "../../lib/context";
 import { Segmented } from "../../components/track/Segmented";
 import { calcTM } from "../../lib/program";
-import { PROGRAMS } from "../../lib/programs";
+import { PROGRAMS, ProgramId } from "../../lib/programs";
 import { getCurrentFiveRM } from "../../lib/programs/texasMethod";
 import { spacing, borderRadius } from "../../constants/theme";
 
@@ -62,14 +62,30 @@ interface RecentAmrap {
   date: string;
 }
 
-interface AskCoachContext {
+// Wendler 5/3/1 and Texas Method share a payload shape — percentage-driven
+// programs with a Training Max / 5RM, a numbered cycle, and AMRAP history.
+interface AskCoachContextStandard {
+  program: "wendler531" | "texasMethod";
   currentTMs: Record<string, number>;
   cycleNumber: number;
   cyclePhase: string;
   recentAmraps: RecentAmrap[];
   unit: string;
-  program: string;
 }
+
+// Starting Strength has no Training Max, cycle, or AMRAP concept — it sends a
+// parallel payload built from working weights and A/B session state instead.
+// `unit` keeps the wendler/TM field name + "lbs"/"kg" form for payload
+// consistency (the spec's `units` was reconciled to the existing structure).
+interface AskCoachContextSS {
+  program: "startingStrength";
+  workingWeights: Record<string, number>;
+  sessionCount: number;
+  lastWorkoutLetter: "A" | "B" | null;
+  unit: string;
+}
+
+type AskCoachContext = AskCoachContextStandard | AskCoachContextSS;
 
 type RulesSection = { title: string; body: string };
 
@@ -144,11 +160,69 @@ const TEXAS_METHOD_RULES: RulesSection[] = [
   },
 ];
 
+const STARTING_STRENGTH_RULES: RulesSection[] = [
+  {
+    title: "LINEAR PROGRESSION — THE CORE ENGINE",
+    body:
+      "Starting Strength is novice linear progression: add a small fixed amount of weight to every lift, every session, for as long as you can recover from it. The standard jump is +5 lbs / +2.5 kg per lift, per session. This is the fastest strength progress you will ever make — a true beginner can add weight every single workout for months. Don't add volume, don't add days, don't get clever; the simplicity is the point.",
+  },
+  {
+    title: "THE A/B WORKOUT STRUCTURE",
+    body:
+      "Two full-body workouts alternate strictly A/B/A/B, trained 3 non-consecutive days per week (traditionally Mon/Wed/Fri).\n- Workout A: Squat, Overhead Press, Deadlift\n- Workout B: Squat, Bench Press, Deadlift\nEvery lift is 3 sets of 5 reps across (3x5) at one working weight — except the deadlift, which is a single set of 5. Squat is trained every session; bench and press alternate. As you advance past the ramp-up phase, Workout B's deadlift slot becomes a lighter pull (a row or power clean).",
+  },
+  {
+    title: "WORKING WEIGHTS, NOT TRAINING MAXES",
+    body:
+      "Starting Strength has no Training Max, no 1RM, and no percentage math. It tracks Working Weights — the literal load on the bar for your 3x5. Last session's weight plus the increment is next session's weight. This is why Settings shows Working Weights for this program where 5/3/1 and Texas Method show 1 Rep Maxes: the working weight is the program's source of truth.",
+  },
+  {
+    title: "FAILURE & THE DELOAD PROTOCOL",
+    body:
+      "Failing means not completing all 5 prescribed reps on a work set.\n- One failed session: normal — repeat the same weight next time.\n- Two consecutive failed sessions on a lift: deload that lift by ~10% and rebuild.\n- After a deload: the lift switches to microloading (smaller jumps) to extend progress.\nDeloads are per-lift — a stalled squat doesn't stop your press or deadlift from progressing.",
+  },
+  {
+    title: "EAT & SLEEP TO DRIVE THE LP",
+    body:
+      "Linear progression is limited by recovery, not effort. To keep adding weight you have to eat enough — a true novice usually needs a caloric surplus and plenty of protein — and sleep 8+ hours a night. Most early stalls are under-eating or under-sleeping, not bad programming. Fix recovery before you blame the program or change it.",
+  },
+  {
+    title: "WHEN LINEAR PROGRESSION ENDS",
+    body:
+      "Novice LP is finite. When a lift stalls and deloads repeatedly despite good food and sleep, you've exhausted session-to-session progress — that's the expected end of the novice phase, not a failure. The next step is an intermediate program that progresses week to week, such as the Texas Method. There is no in-app graduation; switch programs from onboarding when you're genuinely ready.",
+  },
+];
+
+// Per-program chat empty-state copy + input placeholder, keyed by activeProgram
+// so every program contributes its own vocabulary (no 2-way fallthrough).
+const PROGRAM_COPY: Record<ProgramId, { empty: string; placeholder: string }> = {
+  wendler531: {
+    empty:
+      "Ask Coach anything about 5/3/1 — training max management, AMRAP interpretation, assistance templates, deload decisions, or programming questions.",
+    placeholder: "Ask Coach anything about 5/3/1...",
+  },
+  texasMethod: {
+    empty:
+      "Ask Coach anything about Texas Method — Volume/Recovery/Intensity structure, 5RM PR attempts, bench/press alternation, stall response, or recovery requirements.",
+    placeholder: "Ask Coach anything about Texas Method...",
+  },
+  startingStrength: {
+    empty:
+      "Ask Coach anything about 3x5 Strength — linear progression, the A/B workout split, working weights, deload decisions, or when to move on to an intermediate program.",
+    placeholder: "Ask Coach anything about 3x5 Strength...",
+  },
+};
+
+const RULES_BY_PROGRAM: Record<ProgramId, RulesSection[]> = {
+  wendler531: WENDLER_531_RULES,
+  texasMethod: TEXAS_METHOD_RULES,
+  startingStrength: STARTING_STRENGTH_RULES,
+};
+
 export default function AskCoachScreen() {
   const { data, theme } = useApp();
   const activeProgram = data.activeProgram;
   const programLabel = PROGRAMS[activeProgram].displayName;
-  const isTm = activeProgram === "texasMethod";
   const tabBarHeight = useBottomTabBarHeight();
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -179,9 +253,30 @@ export default function AskCoachScreen() {
   const keyboardLift = Math.max(0, keyboardHeight - tabBarHeight);
 
   const buildContext = (): AskCoachContext => {
+    const unit = data.settings.units === "lb" ? "lbs" : "kg";
+
+    // Starting Strength has no Training Max, cycle, or AMRAP data — it sends a
+    // parallel payload from its own working-weight / A-B-session model. (Until
+    // Wave E2 the backend falls back to the 5/3/1 prompt for this program.)
+    if (activeProgram === "startingStrength") {
+      const ss = data.programs.startingStrength;
+      return {
+        program: "startingStrength",
+        workingWeights: {
+          Squat: ss.workingWeights.squat,
+          "Bench Press": ss.workingWeights.bench,
+          Deadlift: ss.workingWeights.deadlift,
+          "Overhead Press": ss.workingWeights.press,
+        },
+        sessionCount: ss.sessionCount,
+        lastWorkoutLetter: ss.lastWorkout,
+        unit,
+      };
+    }
+
     const tmPct = data.settings.tmPercentage;
     const currentTMs: Record<string, number> = {};
-    if (isTm) {
+    if (activeProgram === "texasMethod") {
       // For Texas Method we send 5RMs in the same field — the server is told via
       // `program` how to label them in its prompt. 5RM is now derived from the
       // canonical lifts[name].oneRepMax (Phase 5E single source of truth).
@@ -208,11 +303,11 @@ export default function AskCoachScreen() {
       return { lift: w.exercise, weight: top.weight, reps: top.actualReps, date: w.date };
     });
     const cyclePhase = amrapWorkouts[0]?.week ?? "5/5/5";
-    const unit = data.settings.units === "lb" ? "lbs" : "kg";
-    const cycleNumber = isTm
-      ? data.programs.texasMethod.weekIndex
-      : data.programs.wendler531.currentCycle;
-    return { currentTMs, cycleNumber, cyclePhase, recentAmraps, unit, program: data.activeProgram };
+    const cycleNumber =
+      activeProgram === "texasMethod"
+        ? data.programs.texasMethod.weekIndex
+        : data.programs.wendler531.currentCycle;
+    return { program: activeProgram, currentTMs, cycleNumber, cyclePhase, recentAmraps, unit };
   };
 
   const sendMessage = async (text: string) => {
@@ -309,12 +404,7 @@ export default function AskCoachScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  const emptyCopy = isTm
-    ? "Ask Coach anything about Texas Method — Volume/Recovery/Intensity structure, 5RM PR attempts, bench/press alternation, stall response, or recovery requirements."
-    : "Ask Coach anything about 5/3/1 — training max management, AMRAP interpretation, assistance templates, deload decisions, or programming questions.";
-  const placeholder = isTm
-    ? "Ask Coach anything about Texas Method..."
-    : "Ask Coach anything about 5/3/1...";
+  const { empty: emptyCopy, placeholder } = PROGRAM_COPY[activeProgram];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -350,7 +440,7 @@ export default function AskCoachScreen() {
           placeholder={placeholder}
         />
       ) : (
-        <RulesView theme={theme} sections={isTm ? TEXAS_METHOD_RULES : WENDLER_531_RULES} programLabel={programLabel} />
+        <RulesView theme={theme} sections={RULES_BY_PROGRAM[activeProgram]} programLabel={programLabel} />
       )}
     </View>
   );
