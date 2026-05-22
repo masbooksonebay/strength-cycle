@@ -1,4 +1,4 @@
-import { forwardRef, useId } from "react";
+import { forwardRef, useId, useState } from "react";
 import {
   TextInput,
   TextInputProps,
@@ -18,33 +18,52 @@ interface Props extends TextInputProps {
 }
 
 export const NumericInputWithDone = forwardRef<TextInput, Props>(function NumericInputWithDone(
-  { doneLabel = "Done", ...rest },
+  { doneLabel = "Done", onFocus, onBlur, ...rest },
   ref,
 ) {
   const { theme } = useApp();
   const rawId = useId();
   const accessoryID = `sc-num-done-${rawId.replace(/:/g, "")}`;
+  // The InputAccessoryView is mounted ONLY while this input is focused. A
+  // permanently-mounted InputAccessoryView lingers as a stray "Done" bar pinned
+  // to the bottom of the screen after the keyboard hides; gating it on focus
+  // state guarantees it leaves the tree the moment the input blurs.
+  const [focused, setFocused] = useState(false);
 
   if (Platform.OS !== "ios") {
-    return <TextInput ref={ref} {...rest} />;
+    return <TextInput ref={ref} onFocus={onFocus} onBlur={onBlur} {...rest} />;
   }
 
   return (
     <>
-      <TextInput ref={ref} inputAccessoryViewID={accessoryID} {...rest} />
-      <InputAccessoryView nativeID={accessoryID}>
-        <View style={[styles.bar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-          <TouchableOpacity
-            accessible
-            accessibilityLabel="Done, dismiss keyboard"
-            accessibilityRole="button"
-            onPress={() => Keyboard.dismiss()}
-            style={styles.doneBtn}
-          >
-            <Text style={[styles.doneText, { color: theme.accent }]}>{doneLabel}</Text>
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
+      <TextInput
+        ref={ref}
+        inputAccessoryViewID={accessoryID}
+        {...rest}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
+      />
+      {focused && (
+        <InputAccessoryView nativeID={accessoryID}>
+          <View style={[styles.bar, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
+            <TouchableOpacity
+              accessible
+              accessibilityLabel="Done, dismiss keyboard"
+              accessibilityRole="button"
+              onPress={() => Keyboard.dismiss()}
+              style={styles.doneBtn}
+            >
+              <Text style={[styles.doneText, { color: theme.accent }]}>{doneLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
     </>
   );
 });
