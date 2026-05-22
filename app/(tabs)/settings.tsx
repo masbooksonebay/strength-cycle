@@ -5,7 +5,7 @@ import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
-import { PROGRAMS } from "../../lib/programs";
+import { PROGRAMS, SSLiftKey } from "../../lib/programs";
 import { spacing, borderRadius } from "../../constants/theme";
 import { useEffect, useState } from "react";
 import { buildSampleWorkouts, SAMPLE_DATA_ENABLED_KEY } from "../../lib/sampleData";
@@ -157,6 +157,16 @@ function DeveloperToolsSection() {
 
 const TM_OPTIONS = [80, 85, 90, 95, 100];
 
+// Starting Strength work-set weights surfaced in Settings → Working Weights.
+// Order + labels mirror the SS onboarding setup screen; keys index into
+// data.programs.startingStrength.workingWeights.
+const SS_WORKING_WEIGHT_ROWS: { key: SSLiftKey; label: string }[] = [
+  { key: "squat", label: "Squat" },
+  { key: "bench", label: "Bench Press" },
+  { key: "deadlift", label: "Deadlift" },
+  { key: "press", label: "Overhead Press" },
+];
+
 const ROUNDING_LABELS: Record<RoundingMode, string> = {
   down: "Always down",
   nearest: "Nearest",
@@ -164,13 +174,15 @@ const ROUNDING_LABELS: Record<RoundingMode, string> = {
 };
 
 export default function SettingsScreen() {
-  const { data, theme, updateSettings, updateLift, changeUnits } = useApp();
+  const { data, theme, updateSettings, updateLift, updateStartingStrengthState, changeUnits } = useApp();
   const router = useRouter();
   const s = data.settings;
   const activeProgramName = PROGRAMS[data.activeProgram].displayName;
   const unitLabel = s.units === "lb" ? "lbs" : "kg";
   const [editingRM, setEditingRM] = useState<string | null>(null);
   const [rmValue, setRmValue] = useState("");
+  const [editingWW, setEditingWW] = useState<SSLiftKey | null>(null);
+  const [wwValue, setWwValue] = useState("");
   const [showPrecision, setShowPrecision] = useState(false);
   const [showTMPct, setShowTMPct] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
@@ -182,6 +194,22 @@ export default function SettingsScreen() {
 
   const startEditRM = (lift: string, current: number) => { setEditingRM(lift); setRmValue(String(current)); };
   const saveRM = () => { if (editingRM && rmValue) { const v = parseFloat(rmValue); if (v > 0) updateLift(editingRM, { oneRepMax: v }); } setEditingRM(null); };
+
+  // Working Weights editor — mirrors the 1RM inline editor above, but the data
+  // source is data.programs.startingStrength.workingWeights (SS work-set loads,
+  // NOT lifts[].oneRepMax — distinct fields per the Stage 3.5/4 architecture).
+  const startEditWW = (key: SSLiftKey, current: number) => { setEditingWW(key); setWwValue(String(current)); };
+  const saveWW = () => {
+    if (editingWW && wwValue) {
+      const v = parseFloat(wwValue);
+      if (v > 0) {
+        updateStartingStrengthState({
+          workingWeights: { ...data.programs.startingStrength.workingWeights, [editingWW]: v },
+        });
+      }
+    }
+    setEditingWW(null);
+  };
 
   const handleSendFeedback = () => {
     const version = Constants.expoConfig?.version ?? "1.0.4";
@@ -258,21 +286,41 @@ export default function SettingsScreen() {
         } />
       </Section>
 
-      <Section title="1 Rep Max" theme={theme}>
-        {data.lifts.map((lift, i) => (
-          <Row key={lift.name} label={lift.name} last={i === data.lifts.length - 1} theme={theme}
-            right={editingRM === lift.name ? (
-              <View style={styles.rmEdit}>
-                <NumericInputWithDone style={[styles.rmInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={rmValue} onChangeText={setRmValue} keyboardType="numeric" autoFocus onSubmitEditing={saveRM} />
-                <TouchableOpacity onPress={saveRM}><Ionicons name="checkmark-circle" size={28} color={theme.accent} /></TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity onPress={() => startEditRM(lift.name, lift.oneRepMax)} style={styles.tapRow}>
-                <Text style={[styles.rmValue, { color: theme.accent }]}>{lift.oneRepMax} {unitLabel}</Text>
-              </TouchableOpacity>
-            )} />
-        ))}
-      </Section>
+      {(data.activeProgram === "wendler531" || data.activeProgram === "texasMethod") && (
+        <Section title="1 Rep Max" theme={theme}>
+          {data.lifts.map((lift, i) => (
+            <Row key={lift.name} label={lift.name} last={i === data.lifts.length - 1} theme={theme}
+              right={editingRM === lift.name ? (
+                <View style={styles.rmEdit}>
+                  <NumericInputWithDone style={[styles.rmInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={rmValue} onChangeText={setRmValue} keyboardType="numeric" autoFocus onSubmitEditing={saveRM} />
+                  <TouchableOpacity onPress={saveRM}><Ionicons name="checkmark-circle" size={28} color={theme.accent} /></TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={() => startEditRM(lift.name, lift.oneRepMax)} style={styles.tapRow}>
+                  <Text style={[styles.rmValue, { color: theme.accent }]}>{lift.oneRepMax} {unitLabel}</Text>
+                </TouchableOpacity>
+              )} />
+          ))}
+        </Section>
+      )}
+
+      {data.activeProgram === "startingStrength" && (
+        <Section title="Working Weights" theme={theme}>
+          {SS_WORKING_WEIGHT_ROWS.map(({ key, label }, i) => (
+            <Row key={key} label={label} last={i === SS_WORKING_WEIGHT_ROWS.length - 1} theme={theme}
+              right={editingWW === key ? (
+                <View style={styles.rmEdit}>
+                  <NumericInputWithDone style={[styles.rmInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBg }]} value={wwValue} onChangeText={setWwValue} keyboardType="numeric" autoFocus onSubmitEditing={saveWW} />
+                  <TouchableOpacity onPress={saveWW}><Ionicons name="checkmark-circle" size={28} color={theme.accent} /></TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={() => startEditWW(key, data.programs.startingStrength.workingWeights[key])} style={styles.tapRow}>
+                  <Text style={[styles.rmValue, { color: theme.accent }]}>{data.programs.startingStrength.workingWeights[key]} {unitLabel}</Text>
+                </TouchableOpacity>
+              )} />
+          ))}
+        </Section>
+      )}
 
       <Section title="Plate Calculator" theme={theme}>
         <Row label="Bar Weight" theme={theme} right={
@@ -316,20 +364,40 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Preferences" theme={theme}>
-        <Row label="TM Percentage" theme={theme} right={
-          <TouchableOpacity onPress={() => setShowTMPct(!showTMPct)} style={styles.tapRow}>
-            <Text style={[styles.valueText, { color: theme.accent }]}>{s.tmPercentage}%</Text>
-            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
-          </TouchableOpacity>
-        } />
-        {showTMPct && (
-          <View style={[styles.picker, { borderTopColor: theme.border, padding: spacing.md, borderTopWidth: 1 }]}>
-            {TM_OPTIONS.map((v) => (
-              <TouchableOpacity key={v} style={[styles.pickerOption, s.tmPercentage === v && { backgroundColor: theme.accent }, { borderColor: theme.border }]} onPress={() => { updateSettings({ tmPercentage: v }); setShowTMPct(false); }}>
-                <Text style={[styles.pickerText, { color: s.tmPercentage === v ? "#fff" : theme.text }]}>{v}%</Text>
+        {data.activeProgram === "wendler531" && (
+          <>
+            <Row label="TM Percentage" theme={theme} right={
+              <TouchableOpacity onPress={() => setShowTMPct(!showTMPct)} style={styles.tapRow}>
+                <Text style={[styles.valueText, { color: theme.accent }]}>{s.tmPercentage}%</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
               </TouchableOpacity>
-            ))}
-          </View>
+            } />
+            {showTMPct && (
+              <View style={[styles.picker, { borderTopColor: theme.border, padding: spacing.md, borderTopWidth: 1 }]}>
+                {TM_OPTIONS.map((v) => (
+                  <TouchableOpacity key={v} style={[styles.pickerOption, s.tmPercentage === v && { backgroundColor: theme.accent }, { borderColor: theme.border }]} onPress={() => { updateSettings({ tmPercentage: v }); setShowTMPct(false); }}>
+                    <Text style={[styles.pickerText, { color: s.tmPercentage === v ? "#fff" : theme.text }]}>{v}%</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+        {data.activeProgram === "startingStrength" && (
+          <>
+            <Row label="Deload Percentage" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the deload percentage will arrive in a future update. Starting Strength currently deloads a stalled lift by 10%.")} right={
+              <View style={styles.tapRow}>
+                <Text style={[styles.valueText, { color: theme.accent }]}>10% (default)</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+              </View>
+            } />
+            <Row label="Stall Threshold" theme={theme} onPress={() => Alert.alert("Coming Soon", "Customising the stall threshold will arrive in a future update. Starting Strength currently deloads a lift after 2 consecutive failed sessions.")} right={
+              <View style={styles.tapRow}>
+                <Text style={[styles.valueText, { color: theme.accent }]}>2 failed sessions (default)</Text>
+                <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+              </View>
+            } />
+          </>
         )}
         <Row label="Prevent Screen Sleep" theme={theme} right={<Switch value={s.preventSleep} onValueChange={(v) => updateSettings({ preventSleep: v })} trackColor={{ true: theme.accent }} />} />
         <Row label="Rest Timer" theme={theme} last right={

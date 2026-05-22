@@ -6,15 +6,13 @@ import { spacing, borderRadius } from "../../constants/theme";
 import { ProgramId, PROGRAMS } from "../../lib/programs";
 import { AppData } from "../../lib/store";
 
-const PROGRAM_LIST: ProgramId[] = ["wendler531", "texasMethod", "startingStrength"];
+const PROGRAM_LIST: ProgramId[] = ["wendler531", "startingStrength", "texasMethod"];
 
-// User-facing row copy. Starting Strength is surfaced as "3x5 Strength" — the
-// metadata displayName ("Starting Strength") is kept internal-only; the picker
-// and this switcher present this neutral label + subtitle instead.
+// User-facing row title — pulled straight from each program's metadata.
 const PROGRAM_ROW_TITLE: Record<ProgramId, string> = {
   wendler531: PROGRAMS.wendler531.displayName,
   texasMethod: PROGRAMS.texasMethod.displayName,
-  startingStrength: "3x5 Strength",
+  startingStrength: PROGRAMS.startingStrength.displayName,
 };
 
 const PROGRAM_ROW_SUBTITLE: Record<ProgramId, string> = {
