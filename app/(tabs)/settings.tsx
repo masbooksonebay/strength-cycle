@@ -71,7 +71,12 @@ function DeveloperSection() {
 
   const onToggle = (next: boolean) => {
     if (next) {
-      const samples = buildSampleWorkouts(data.settings.precision, data.settings.rounding);
+      const samples = buildSampleWorkouts(
+        data.settings.precision,
+        data.settings.rounding,
+        data.activeProgram,
+        data.settings.units,
+      );
       replaceSampleWorkouts(samples);
       persistEnabled(true);
       Alert.alert("Sample data loaded", "Sample data loaded. Check Track → Progress to see charts populate.");

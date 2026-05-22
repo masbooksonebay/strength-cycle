@@ -101,26 +101,28 @@ function buildWendler531SquatHistory(): WorkoutLog[] {
 }
 
 // ─── Texas Method ───────────────────────────────────────────────────────────
-// 8 weeks of Volume + Intensity Day Squat. Volume Day = 5×5 work sets at the
-// week's volume weight; Intensity Day = 1×5 PR attempt (isAmrap so the
-// analytics intensityTableForLift / weeklyProgressionTable picks it up).
-//
-// Volume / Intensity weight progression per spec — Volume tracks behind
-// Intensity by one PR step (real-world: Mon Volume reflects last Fri's PR).
-function buildTexasMethodSquatHistory(): WorkoutLog[] {
-  const VOLUME_WEIGHTS = [77.5, 80, 80, 82.5, 82.5, 85, 85, 87.5];
-  const INTENSITY_WEIGHTS = [80, 82.5, 85, 87.5, 90, 92.5, 95, 97.5];
-  const workouts: WorkoutLog[] = [];
-  for (let w = 0; w < 8; w++) {
-    const weekFromEndDays = (8 - w - 1) * 7;
-    // Mon Volume sits 4 days before Fri Intensity within the same week.
-    const volumeDate = isoDaysAgo(weekFromEndDays + 4);
-    const intensityDate = isoDaysAgo(weekFromEndDays);
-    const cycle = w + 1;
+// 4 weeks of the Volume / Recovery / Intensity weekly cycle, squat only —
+// squat is trained on all three TM days, so the seed is 3 squat WorkoutLogs
+// per week (12 total). Volume Day = 5×5, Recovery Day = 2×5, Intensity Day =
+// 1×5+ PR attempt (isAmrap so analytics intensityTableForLift /
+// weeklyProgressionTable pick it up). Weights progress one 2.5 kg step per
+// week; Volume / Recovery track behind Intensity (real-world: Mon Volume
+// reflects last Fri's PR).
+const TM_SQUAT_WEEKS = 4;
+const TM_VOLUME_WEIGHTS = [80, 82.5, 85, 87.5];
+const TM_RECOVERY_WEIGHTS = [65, 67.5, 70, 72.5];
+const TM_INTENSITY_WEIGHTS = [90, 92.5, 95, 97.5];
 
+function buildTexasMethodSquatHistory(): WorkoutLog[] {
+  const workouts: WorkoutLog[] = [];
+  for (let w = 0; w < TM_SQUAT_WEEKS; w++) {
+    const weekFromEndDays = (TM_SQUAT_WEEKS - w - 1) * 7;
+    const cycle = w + 1;
+    // Within the week: Mon Volume / Wed Recovery / Fri Intensity. The most
+    // recent week's Intensity Day lands ~1 day ago.
     const volSets: SetLog[] = Array.from({ length: 5 }, () => ({
       percentage: 90,
-      weight: VOLUME_WEIGHTS[w],
+      weight: TM_VOLUME_WEIGHTS[w],
       targetReps: "5",
       actualReps: 5,
       isAmrap: false,
@@ -128,7 +130,7 @@ function buildTexasMethodSquatHistory(): WorkoutLog[] {
     }));
     workouts.push({
       id: generateId(),
-      date: volumeDate,
+      date: isoDaysAgo(weekFromEndDays + 5),
       exercise: "Squat",
       week: "Volume Day",
       cycle,
@@ -137,15 +139,34 @@ function buildTexasMethodSquatHistory(): WorkoutLog[] {
       program: "texasMethod",
     });
 
+    const recSets: SetLog[] = Array.from({ length: 2 }, () => ({
+      percentage: 80,
+      weight: TM_RECOVERY_WEIGHTS[w],
+      targetReps: "5",
+      actualReps: 5,
+      isAmrap: false,
+      isWarmup: false,
+    }));
     workouts.push({
       id: generateId(),
-      date: intensityDate,
+      date: isoDaysAgo(weekFromEndDays + 3),
+      exercise: "Squat",
+      week: "Recovery Day",
+      cycle,
+      sets: recSets,
+      notes: "",
+      program: "texasMethod",
+    });
+
+    workouts.push({
+      id: generateId(),
+      date: isoDaysAgo(weekFromEndDays + 1),
       exercise: "Squat",
       week: "Intensity Day",
       cycle,
       sets: [{
         percentage: 100,
-        weight: INTENSITY_WEIGHTS[w],
+        weight: TM_INTENSITY_WEIGHTS[w],
         targetReps: "5+",
         actualReps: 5,
         isAmrap: true,
@@ -159,22 +180,85 @@ function buildTexasMethodSquatHistory(): WorkoutLog[] {
   return workouts;
 }
 
-// Final Squat 1RM that reflects "where the seeded user's strength is now."
-// 5/3/1: cycle 3 TM = 90, divide by 0.9 → 100, but spec rounds to ~105.
-//   Keep 100 (clean derivation). Spec's "~105" is approximate; 100 is closer
-//   to the literal 3-cycle TM progression and renders better at 1.25 kg
-//   precision.
+// ─── Starting Strength ───────────────────────────────────────────────────────
+// 10 squat sessions of Rippetoe novice linear progression. SS opens both
+// Workout A and B with the squat, so the seed is one squat WorkoutLog per
+// session, A/B alternating from A. 3×5 work sets at a working weight that adds
+// 2.5 kg per session — no AMRAP set (SS barbell lifts are not AMRAP). The week
+// field ("Workout A"/"Workout B") and cycle (session number) match the live SS
+// workout screen. SS has no 1RM concept — its source of truth is
+// programs.startingStrength.workingWeights, advanced in buildSeedPatch.
+const SS_SQUAT_SESSIONS = 10;
+const SS_SQUAT_START_KG = 85;
+const SS_SQUAT_INCREMENT_KG = 2.5;
+// M/W/F cadence — day-ago offset per session, oldest first; newest = ~1 day ago.
+const SS_SQUAT_DAYS_AGO = [22, 19, 17, 15, 12, 10, 8, 5, 3, 1];
+
+function ssSquatFinalWorkingWeight(): number {
+  return SS_SQUAT_START_KG + (SS_SQUAT_SESSIONS - 1) * SS_SQUAT_INCREMENT_KG;
+}
+
+function buildStartingStrengthSquatHistory(): WorkoutLog[] {
+  const workouts: WorkoutLog[] = [];
+  for (let i = 0; i < SS_SQUAT_SESSIONS; i++) {
+    const sessionNumber = i + 1;
+    const weight = SS_SQUAT_START_KG + i * SS_SQUAT_INCREMENT_KG;
+    const letter = sessionNumber % 2 === 1 ? "A" : "B"; // first session is Workout A
+    workouts.push({
+      id: generateId(),
+      date: isoDaysAgo(SS_SQUAT_DAYS_AGO[i]),
+      exercise: "Squat",
+      week: `Workout ${letter}`,
+      cycle: sessionNumber,
+      sets: Array.from({ length: 3 }, () => ({
+        percentage: 100,
+        weight,
+        targetReps: "5",
+        actualReps: 5,
+        isAmrap: false,
+        isWarmup: false,
+      })),
+      notes: "",
+      program: "startingStrength",
+    });
+  }
+  return workouts;
+}
+
+// Final Squat 1RM that reflects "where the seeded user's strength is now" for
+// the two 1RM-driven programs.
+// 5/3/1: cycle 3 TM = 90, divide by 0.9 → 100 (clean derivation).
 // TM: final intensity 97.5, 1RM = 97.5 / 0.85 ≈ 114.7 → 115 kg.
-// startingStrength entry is a placeholder — SS sample-data history + ASC seed
-// flow lands in Wave 5 (screenshot prep). For now buildSeedPatch only branches
-// between 5/3/1 and TM; SS will get its own history builder once it ships.
-const FINAL_SQUAT_1RM_KG: Record<ProgramId, number> = {
+// Starting Strength has no 1RM concept — it is excluded here and seeded via
+// programs.startingStrength.workingWeights in buildSeedPatch instead.
+const FINAL_SQUAT_1RM_KG: Record<"wendler531" | "texasMethod", number> = {
   wendler531: 100,
   texasMethod: 115,
-  startingStrength: 100,
 };
 
 export function buildSeedPatch(data: AppData, program: ProgramId): Partial<AppData> {
+  // Starting Strength: SS tracks working weights, not 1RMs. Seed the squat
+  // history and advance programs.startingStrength.workingWeights.squat to the
+  // final session's weight — lifts[].oneRepMax is intentionally left untouched
+  // (SS never reads it).
+  if (program === "startingStrength") {
+    return {
+      workouts: buildStartingStrengthSquatHistory(),
+      programs: {
+        ...data.programs,
+        startingStrength: {
+          ...data.programs.startingStrength,
+          workingWeights: {
+            ...data.programs.startingStrength.workingWeights,
+            squat: ssSquatFinalWorkingWeight(),
+          },
+        },
+      },
+      settings: kgSettings(data.settings),
+    };
+  }
+
+  // 5/3/1 and Texas Method: both drive off lifts[].oneRepMax (TM per Phase 5E).
   const workouts =
     program === "wendler531" ? buildWendler531SquatHistory() : buildTexasMethodSquatHistory();
   return {
