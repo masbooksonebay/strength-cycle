@@ -232,18 +232,30 @@ export default function AskCoachScreen() {
 
   useEffect(() => {
     const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const showSub = Keyboard.addListener(showEvt, (e) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setKeyboardHeight(e.endCoordinates.height);
     });
-    const hideSub = Keyboard.addListener(hideEvt, () => {
+    // Listen to BOTH keyboardWillHide AND keyboardDidHide on iOS. Will is the
+    // animation-friendly signal — it fires before the keyboard slides down so
+    // LayoutAnimation can animate the pill in sync. But Will doesn't fire
+    // reliably in every dismiss path (interactive drag-down, app backgrounding,
+    // certain Hermes-timing races on prod builds), and when it's skipped
+    // keyboardHeight stays at the last shown value — the input pill stays
+    // pinned mid-screen and the tab bar's hit-testing doesn't realign. Did
+    // fires once the hide animation completes and is the reliable backstop;
+    // whichever lands first wins, a second firing is a no-op.
+    const resetHide = () => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setKeyboardHeight(0);
-    });
+    };
+    const willHideSub =
+      Platform.OS === "ios" ? Keyboard.addListener("keyboardWillHide", resetHide) : null;
+    const didHideSub = Keyboard.addListener("keyboardDidHide", resetHide);
     return () => {
       showSub.remove();
-      hideSub.remove();
+      willHideSub?.remove();
+      didHideSub.remove();
     };
   }, []);
 
@@ -436,6 +448,7 @@ export default function AskCoachScreen() {
           sendMessage={sendMessage}
           scrollRef={scrollRef}
           keyboardLift={keyboardLift}
+          onInputBlur={() => setKeyboardHeight(0)}
           emptyCopy={emptyCopy}
           placeholder={placeholder}
         />
@@ -454,6 +467,7 @@ function ChatView({
   sendMessage,
   scrollRef,
   keyboardLift,
+  onInputBlur,
   emptyCopy,
   placeholder,
 }: {
@@ -464,6 +478,10 @@ function ChatView({
   sendMessage: (text: string) => void;
   scrollRef: React.RefObject<ScrollView | null>;
   keyboardLift: number;
+  // Belt-and-suspenders reset for the keyboard-stuck bug: if both keyboardWillHide
+  // and keyboardDidHide somehow miss, losing focus on the input still resets the
+  // keyboard-height state so the pill returns to the bottom.
+  onInputBlur: () => void;
   emptyCopy: string;
   placeholder: string;
 }) {
@@ -516,6 +534,7 @@ function ChatView({
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => sendMessage(input)}
+            onBlur={onInputBlur}
             returnKeyType="default"
             multiline={false}
             blurOnSubmit={false}
