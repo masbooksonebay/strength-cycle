@@ -48,7 +48,6 @@ export function StartingWeightsNote({ programId }: { programId: ProgramId }) {
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      <Ionicons name="information-circle-outline" size={18} color={theme.accent} />
       <Text style={[styles.text, { color: theme.textSecondary }]}>{NOTE_COPY[programId]}</Text>
       <TouchableOpacity
         onPress={dismiss}
