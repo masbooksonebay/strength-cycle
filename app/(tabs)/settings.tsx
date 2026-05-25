@@ -155,7 +155,10 @@ function DeveloperSection() {
 // with the active program's analytics, and force-switches units to kg so the
 // chart values read as the kg numbers spec'd in lib/devSeed.ts.
 function DeveloperToolsSection() {
-  const { data, theme, applyDevPatch } = useApp();
+  const { data, theme, applyDevPatch, reload } = useApp();
+  const router = useRouter();
+  const [showDump, setShowDump] = useState(false);
+  const [dump, setDump] = useState<string>("");
   const activeProgramName = PROGRAMS[data.activeProgram].displayName;
 
   const onSeed = () => {
@@ -177,6 +180,63 @@ function DeveloperToolsSection() {
     );
   };
 
+  // Order matters: wipe AsyncStorage FIRST, then reload (so loadData reads an
+  // empty disk and returns firstLaunchDefaults with onboardingComplete=false),
+  // then force-route. The _layout gate effect WILL also fire when state flips,
+  // but routing explicitly here avoids any flash of the (tabs) workout screen
+  // re-rendering with default empty data before the gate effect runs.
+  const onResetAppData = () => {
+    Alert.alert(
+      "Reset App Data?",
+      "This wipes EVERY persisted setting and workout (everything in AsyncStorage) and returns you to onboarding. There is no undo.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.clear();
+              await reload();
+              router.replace("/onboarding");
+            } catch (e) {
+              Alert.alert("Reset failed", String(e));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const onViewAppData = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      if (keys.length === 0) {
+        setDump("(AsyncStorage is empty)");
+        setShowDump(true);
+        return;
+      }
+      const entries = await AsyncStorage.multiGet(keys);
+      const pretty = entries
+        .map(([k, v]) => {
+          let rendered = v ?? "(null)";
+          if (v) {
+            try {
+              rendered = JSON.stringify(JSON.parse(v), null, 2);
+            } catch {
+              rendered = v;
+            }
+          }
+          return `▼ ${k}\n${rendered}`;
+        })
+        .join("\n\n");
+      setDump(pretty);
+      setShowDump(true);
+    } catch (e) {
+      Alert.alert("Read failed", String(e));
+    }
+  };
+
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: theme.accent }]}>DEVELOPER TOOLS</Text>
@@ -185,8 +245,27 @@ function DeveloperToolsSection() {
       </Text>
       <View style={[styles.sectionCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <Row label="Seed Sample Squat History" theme={theme} onPress={onSeed} right={<Ionicons name="flask-outline" size={18} color={theme.textSecondary} />} />
-        <Row label="Wipe All Workout Data" theme={theme} onPress={onWipe} last right={<Ionicons name="trash-outline" size={18} color={theme.accent} />} />
+        <Row label="Wipe All Workout Data" theme={theme} onPress={onWipe} right={<Ionicons name="trash-outline" size={18} color={theme.accent} />} />
+        <Row label="View App Data" theme={theme} onPress={onViewAppData} right={<Ionicons name="eye-outline" size={18} color={theme.textSecondary} />} />
+        <Row label="Reset App Data (Trigger Onboarding)" theme={theme} onPress={onResetAppData} last right={<Ionicons name="refresh-outline" size={18} color={theme.accent} />} />
       </View>
+
+      <Modal visible={showDump} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowDump(false)}>
+        <View style={[styles.guideContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.guideHeader}>
+            <Text style={[styles.guideTitle, { color: theme.text }]}>App Data</Text>
+            <TouchableOpacity onPress={() => setShowDump(false)}><Ionicons name="close" size={28} color={theme.text} /></TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.guideContent}>
+            <Text
+              style={[styles.dumpText, { color: theme.text, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" }]}
+              selectable
+            >
+              {dump}
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -635,4 +714,5 @@ const styles = StyleSheet.create({
   hint: { fontSize: 13, marginBottom: spacing.md, lineHeight: 18 },
   devSubtitle: { fontSize: 11, marginBottom: spacing.sm, paddingLeft: spacing.xs, marginTop: -spacing.xs },
   devDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+  dumpText: { fontSize: 11, lineHeight: 16 },
 });
