@@ -219,28 +219,80 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     setupComplete: tmRaw.setupComplete === true,
   };
 
-  // Starting Strength (1.0.4 SS rebuild — Stage 1): the canonical Rippetoe SS
-  // state shape replaces the pre-rebuild Wave 1a/2 shape (a Stronglifts hybrid
-  // with repSchemeStage / consecutiveStalls / deloadedAtCurrentStage /
-  // graduationSuggested), which is structurally incompatible. SS shipped no
-  // workout screen and no onboarding route before this rebuild, so no user can
-  // hold meaningful SS progress — any persisted pre-rebuild SS state is
-  // discarded and reset to the canonical default rather than migrated
-  // field-by-field (migration vs. reset is the same effort here; reset is
-  // cleaner). The nested objects are cloned so the reset state never shares
-  // references with the DEFAULT_STARTING_STRENGTH_STATE constant.
-  const startingStrengthState: StartingStrengthState = {
-    ...DEFAULT_STARTING_STRENGTH_STATE,
-    workingWeights: { ...DEFAULT_STARTING_STRENGTH_STATE.workingWeights },
-    consecutiveFailures: { ...DEFAULT_STARTING_STRENGTH_STATE.consecutiveFailures },
-    deloadHistory: { ...DEFAULT_STARTING_STRENGTH_STATE.deloadHistory },
-    microloadingActive: { ...DEFAULT_STARTING_STRENGTH_STATE.microloadingActive },
-    // setupComplete must read from parsed rather than fall through the SS
-    // reset above — the reset is intentional for pre-rebuild shape migration,
-    // but a boolean explicitly set by finishStartingStrengthSetup needs to
-    // survive subsequent loads.
-    setupComplete: parsed.programs?.startingStrength?.setupComplete === true,
-  };
+  // Starting Strength (1.0.4 SS rebuild): the canonical Rippetoe SS state
+  // shape replaces the pre-rebuild Wave 1a/2 shape (a Stronglifts hybrid with
+  // repSchemeStage / consecutiveStalls / deloadedAtCurrentStage /
+  // graduationSuggested), which is structurally incompatible. The earlier
+  // SS-rebuild Stage-1 migration discarded ALL persisted SS state on every
+  // load — fine for pre-rebuild data (no user held meaningful SS progress
+  // since SS shipped no UI then), but wrong for post-rebuild canonical data,
+  // which would lose workingWeights / startDate / sessionCount / setupComplete
+  // / etc. on every cold launch.
+  //
+  // Gate by shape: if parsed.programs.startingStrength has the canonical
+  // workingWeights record (object with numeric squat/bench/deadlift/press —
+  // the pre-rebuild shape carried no such field), preserve every canonical
+  // field with the same defensive type guards used by the TM migration. If
+  // not, fall through to the original full reset for the pre-rebuild case.
+  // DO NOT remove the gate — the reset path is still required for users
+  // upgrading from pre-rebuild SS state.
+  const ssRaw = parsed.programs?.startingStrength;
+  const ssWW = ssRaw?.workingWeights;
+  const ssIsCanonical =
+    !!ssRaw &&
+    typeof ssRaw === "object" &&
+    !!ssWW &&
+    typeof ssWW === "object" &&
+    typeof ssWW.squat === "number" &&
+    typeof ssWW.bench === "number" &&
+    typeof ssWW.deadlift === "number" &&
+    typeof ssWW.press === "number";
+
+  const startingStrengthState: StartingStrengthState = ssIsCanonical
+    ? {
+        currentPhase:
+          ssRaw.currentPhase === 1 || ssRaw.currentPhase === 2 || ssRaw.currentPhase === 3
+            ? ssRaw.currentPhase
+            : 1,
+        phaseSessionCount:
+          typeof ssRaw.phaseSessionCount === "number" ? ssRaw.phaseSessionCount : 0,
+        pullVariantPreference:
+          ssRaw.pullVariantPreference === "power_clean" ? "power_clean" : "row",
+        workingWeights: {
+          ...DEFAULT_STARTING_STRENGTH_STATE.workingWeights,
+          ...ssRaw.workingWeights,
+        },
+        consecutiveFailures: {
+          ...DEFAULT_STARTING_STRENGTH_STATE.consecutiveFailures,
+          ...(typeof ssRaw.consecutiveFailures === "object" && ssRaw.consecutiveFailures !== null
+            ? ssRaw.consecutiveFailures
+            : {}),
+        },
+        deloadHistory: {
+          ...DEFAULT_STARTING_STRENGTH_STATE.deloadHistory,
+          ...(typeof ssRaw.deloadHistory === "object" && ssRaw.deloadHistory !== null
+            ? ssRaw.deloadHistory
+            : {}),
+        },
+        microloadingActive: {
+          ...DEFAULT_STARTING_STRENGTH_STATE.microloadingActive,
+          ...(typeof ssRaw.microloadingActive === "object" && ssRaw.microloadingActive !== null
+            ? ssRaw.microloadingActive
+            : {}),
+        },
+        lastWorkout:
+          ssRaw.lastWorkout === "A" || ssRaw.lastWorkout === "B" ? ssRaw.lastWorkout : null,
+        sessionCount: typeof ssRaw.sessionCount === "number" ? ssRaw.sessionCount : 0,
+        startDate: typeof ssRaw.startDate === "string" ? ssRaw.startDate : "",
+        setupComplete: ssRaw.setupComplete === true,
+      }
+    : {
+        ...DEFAULT_STARTING_STRENGTH_STATE,
+        workingWeights: { ...DEFAULT_STARTING_STRENGTH_STATE.workingWeights },
+        consecutiveFailures: { ...DEFAULT_STARTING_STRENGTH_STATE.consecutiveFailures },
+        deloadHistory: { ...DEFAULT_STARTING_STRENGTH_STATE.deloadHistory },
+        microloadingActive: { ...DEFAULT_STARTING_STRENGTH_STATE.microloadingActive },
+      };
 
   return {
     activeProgram,
