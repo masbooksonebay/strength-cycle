@@ -29,7 +29,7 @@ function Inner() {
   useEffect(() => {
     const inOnboarding = segments[0] === "onboarding";
     if (!data.onboardingComplete && !inOnboarding) {
-      router.replace("/onboarding");
+      router.replace("/onboarding/welcome");
     }
   }, [data.onboardingComplete, segments, router]);
 
