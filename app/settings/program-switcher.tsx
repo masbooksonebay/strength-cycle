@@ -94,7 +94,8 @@ export default function ProgramSwitcher() {
           Switching is non-destructive — your data for the other program is preserved and resumes where you left off.
         </Text>
         <Text style={[styles.roadmapNote, { color: theme.textSecondary }]}>
-          More programs in development — 5/3/1 BBB, GZCLP, and nSuns coming in future updates.
+          <Text style={styles.roadmapPrefix}>Coming soon</Text>
+          {" — 5/3/1 BBB, GZCLP, nSuns, and more"}
         </Text>
       </ScrollView>
     </View>
@@ -126,4 +127,5 @@ const styles = StyleSheet.create({
   rowMeta: { fontSize: 12, marginTop: 2 },
   footnote: { fontSize: 12, lineHeight: 18, marginTop: spacing.md, paddingHorizontal: spacing.xs },
   roadmapNote: { fontSize: 12, lineHeight: 18, marginTop: spacing.sm, paddingHorizontal: spacing.xs, fontStyle: "italic" },
+  roadmapPrefix: { fontWeight: "600", fontStyle: "normal" },
 });
