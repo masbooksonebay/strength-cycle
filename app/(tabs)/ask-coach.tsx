@@ -485,6 +485,7 @@ function ChatView({
   emptyCopy: string;
   placeholder: string;
 }) {
+  const { data } = useApp();
   const canSend = input.trim().length > 0;
   return (
     <>
@@ -540,6 +541,7 @@ function ChatView({
             blurOnSubmit={false}
             autoCorrect={false}
             autoCapitalize="sentences"
+            keyboardAppearance={data.settings.darkMode ? "dark" : "light"}
           />
           <TouchableOpacity
             onPress={() => sendMessage(input)}

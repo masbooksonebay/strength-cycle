@@ -21,7 +21,8 @@ export const DoneKeyboardToolbar = forwardRef<TextInput, Props>(function DoneKey
   { doneLabel = "Done", onFocus, onBlur, ...rest },
   ref,
 ) {
-  const { theme } = useApp();
+  const { data, theme } = useApp();
+  const keyboardAppearance = data.settings.darkMode ? "dark" : "light";
   const rawId = useId();
   const accessoryID = `sc-done-toolbar-${rawId.replace(/:/g, "")}`;
   // The InputAccessoryView is mounted ONLY while this input is focused. A
@@ -38,6 +39,7 @@ export const DoneKeyboardToolbar = forwardRef<TextInput, Props>(function DoneKey
     <>
       <TextInput
         ref={ref}
+        keyboardAppearance={keyboardAppearance}
         inputAccessoryViewID={accessoryID}
         {...rest}
         onFocus={(e) => {
