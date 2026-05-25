@@ -453,7 +453,7 @@ export default function AskCoachScreen() {
           placeholder={placeholder}
         />
       ) : (
-        <RulesView theme={theme} sections={RULES_BY_PROGRAM[activeProgram]} programLabel={programLabel} />
+        <RulesView theme={theme} sections={RULES_BY_PROGRAM[activeProgram]} />
       )}
     </View>
   );
@@ -559,7 +559,7 @@ function ChatView({
   );
 }
 
-function RulesView({ theme, sections, programLabel }: { theme: any; sections: RulesSection[]; programLabel: string }) {
+function RulesView({ theme, sections }: { theme: any; sections: RulesSection[] }) {
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const toggle = (title: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -567,9 +567,6 @@ function RulesView({ theme, sections, programLabel }: { theme: any; sections: Ru
   };
   return (
     <ScrollView contentContainerStyle={styles.rulesContent} keyboardDismissMode="on-drag">
-      <Text style={[styles.rulesNote, { color: theme.textSecondary }]}>
-        {programLabel} reference — tap any section to expand.
-      </Text>
       {sections.map((section) => {
         const open = !!openMap[section.title];
         return (
@@ -634,7 +631,6 @@ const styles = StyleSheet.create({
   },
 
   rulesContent: { padding: spacing.md },
-  rulesNote: { fontSize: 11, textAlign: "center", marginBottom: spacing.md },
   ruleSection: { borderBottomWidth: 0.5 },
   ruleSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14 },
   ruleSectionTitle: { fontSize: 14, fontWeight: "700", letterSpacing: 0.3, flex: 1, paddingRight: spacing.sm },
