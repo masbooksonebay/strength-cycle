@@ -237,6 +237,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         press: weights.press,
       },
       startDate: new Date().toISOString(),
+      setupComplete: true,
     };
     persist({
       ...data,

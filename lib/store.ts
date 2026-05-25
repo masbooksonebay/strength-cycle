@@ -181,6 +181,7 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
         : typeof parsed.currentCycle === "number"
           ? parsed.currentCycle
           : 1,
+    setupComplete: parsed.programs?.wendler531?.setupComplete === true,
   };
 
   const tmRaw = parsed.programs?.texasMethod ?? {};
@@ -215,6 +216,7 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     pendingStallResolution: tmPendingStallResolution as TexasMethodState["pendingStallResolution"],
     powerCleanEnabled: typeof tmRaw.powerCleanEnabled === "boolean" ? tmRaw.powerCleanEnabled : false,
     bodyweight: typeof tmRaw.bodyweight === "number" ? tmRaw.bodyweight : 0,
+    setupComplete: tmRaw.setupComplete === true,
   };
 
   // Starting Strength (1.0.4 SS rebuild — Stage 1): the canonical Rippetoe SS
@@ -233,6 +235,11 @@ function migratePrograms(parsed: any): { activeProgram: ProgramId; programs: Pro
     consecutiveFailures: { ...DEFAULT_STARTING_STRENGTH_STATE.consecutiveFailures },
     deloadHistory: { ...DEFAULT_STARTING_STRENGTH_STATE.deloadHistory },
     microloadingActive: { ...DEFAULT_STARTING_STRENGTH_STATE.microloadingActive },
+    // setupComplete must read from parsed rather than fall through the SS
+    // reset above — the reset is intentional for pre-rebuild shape migration,
+    // but a boolean explicitly set by finishStartingStrengthSetup needs to
+    // survive subsequent loads.
+    setupComplete: parsed.programs?.startingStrength?.setupComplete === true,
   };
 
   return {
@@ -302,10 +309,48 @@ export async function loadData(): Promise<AppData> {
         settings: migrateSettings(parsed.settings),
       };
       merged.lifts = backfillOneRMsFromCachedFiveRMs(merged.lifts, parsed);
+      backfillProgramSetupComplete(merged, parsed);
       return merged;
     }
   } catch {}
   return firstLaunchDefaults();
+}
+
+// 1.0.4 J — setupComplete is a new per-program boolean that distinguishes
+// "user has been through this program's setup screen via Get Started" from
+// "lift values happen to be present." For existing 1.0.3 users upgrading,
+// the field is absent from persisted data and migratePrograms initializes
+// it to false. Backfill to true if the user clearly has program-relevant
+// data already:
+//   - 5/3/1 + TM share lifts[name].oneRepMax. Any core lift with a non-
+//     default 1RM means SOME prior setup committed real numbers — both
+//     programs can run off that shared data without re-prompting.
+//   - SS uses its own workingWeights slice; any non-zero value is the
+//     equivalent signal. (Currently dead code on the read side because
+//     the SS migration above resets workingWeights — flagged as a
+//     separate concern; this branch is correct when that's resolved.)
+// Explicit false in parsed data is honored (a user who tapped Skip should
+// not be backfilled to true).
+function backfillProgramSetupComplete(merged: AppData, parsed: any): void {
+  const hasRealOneRM = merged.lifts.some(
+    (l) => l.oneRepMax > 0 && l.oneRepMax !== 100,
+  );
+  const ssWeights = merged.programs.startingStrength.workingWeights;
+  const hasSSWeights =
+    ssWeights.squat > 0 ||
+    ssWeights.bench > 0 ||
+    ssWeights.deadlift > 0 ||
+    ssWeights.press > 0;
+
+  if (parsed?.programs?.wendler531?.setupComplete === undefined && hasRealOneRM) {
+    merged.programs.wendler531.setupComplete = true;
+  }
+  if (parsed?.programs?.texasMethod?.setupComplete === undefined && hasRealOneRM) {
+    merged.programs.texasMethod.setupComplete = true;
+  }
+  if (parsed?.programs?.startingStrength?.setupComplete === undefined && hasSSWeights) {
+    merged.programs.startingStrength.setupComplete = true;
+  }
 }
 
 export async function saveData(data: AppData): Promise<void> {

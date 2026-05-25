@@ -46,10 +46,18 @@ export default function TexasMethodSetup() {
       rounding: data.settings.rounding,
       powerCleanEnabled: false,
     });
+    // setupComplete flips to true only on Get Started — Skip preserves the
+    // existing per-program flag (false on a fresh install, possibly true if
+    // the user previously completed and is re-entering setup). The seeded
+    // state defaults setupComplete to false, so we wrap to override here.
+    const tmStateForPatch = {
+      ...seeded,
+      setupComplete: skip ? data.programs.texasMethod.setupComplete : true,
+    };
     completeOnboarding({
       activeProgram: "texasMethod",
       lifts: nextLifts,
-      programs: { ...data.programs, texasMethod: seeded },
+      programs: { ...data.programs, texasMethod: tmStateForPatch },
     });
     router.replace(fromSettings ? "/(tabs)/settings" : "/(tabs)");
   };

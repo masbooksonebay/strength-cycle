@@ -400,6 +400,9 @@ export function seedTexasMethodState(args: {
     pendingStallResolution: null,
     powerCleanEnabled,
     bodyweight,
+    // Caller (TM setup screen) overrides to true on Get Started; a fresh
+    // seed without explicit user confirmation reads as not-yet-set-up.
+    setupComplete: false,
   };
 }
 

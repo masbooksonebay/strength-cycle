@@ -8,10 +8,6 @@ import { AppData } from "../../lib/store";
 
 const PROGRAM_LIST: ProgramId[] = ["wendler531", "startingStrength", "texasMethod"];
 
-// The four barbell lifts every program requires data for. Custom lifts the user
-// has added (isCustom: true) are not gating — only the four core lifts decide
-// whether a switch can skip setup.
-const CORE_LIFT_NAMES = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as const;
 
 // User-facing row title — pulled straight from each program's metadata.
 const PROGRAM_ROW_TITLE: Record<ProgramId, string> = {
@@ -26,26 +22,20 @@ const PROGRAM_ROW_SUBTITLE: Record<ProgramId, string> = {
   startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
 };
 
-// "Configured" = the target program has all the data it needs to start a
-// workout without re-prompting. 5/3/1 and Texas Method both run off
-// lifts[name].oneRepMax — DEFAULT_LIFTS seeds every 1RM at 100, so all four
-// core lifts must read as both > 0 AND != 100 to count as user-entered.
-// Starting Strength carries its own workingWeights slice (defaults to 0 for
-// all four), populated only at SS setup — all four must be > 0.
+// "Configured" = the user has explicitly completed this program's setup
+// screen via "Get Started". Reads the per-program setupComplete flag on
+// data.programs[id], which finishStartingStrengthSetup / the wendler531 and
+// texasMethod setup screens set to true only on Get Started (never on Skip).
 //
-// Tightened from a prior version that used `.some()` on the 1RM check: even
-// one core lift left at the default 100 should still trigger the setup screen
-// (5/3/1 generates work-set loads as percentages of each lift's 1RM, so a 100
-// default would prescribe nonsense weights for that lift).
+// Prior versions of this check tried to infer setup from observed lift state
+// — e.g., `lift.oneRepMax !== 100`. That heuristic broke when a user
+// legitimately had a 1RM of literally 100 (their entered value was
+// indistinguishable from the seed default) and when the user left fields
+// blank during Get Started (parseFloat("") = NaN → field stayed at 100 →
+// every-lift check failed). The explicit boolean flag separates "value
+// happens to be present" from "user confirmed setup" and is robust to both.
 function isProgramConfigured(data: AppData, id: ProgramId): boolean {
-  if (id === "startingStrength") {
-    const ww = data.programs.startingStrength.workingWeights;
-    return ww.squat > 0 && ww.bench > 0 && ww.deadlift > 0 && ww.press > 0;
-  }
-  return CORE_LIFT_NAMES.every((name) => {
-    const lift = data.lifts.find((l) => l.name === name);
-    return lift !== undefined && lift.oneRepMax > 0 && lift.oneRepMax !== 100;
-  });
+  return data.programs[id].setupComplete === true;
 }
 
 export default function ProgramSwitcher() {

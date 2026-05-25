@@ -30,6 +30,12 @@ export interface ProgramSet {
 
 export interface Wendler531State {
   currentCycle: number;
+  // True once the user has explicitly completed this program's setup screen
+  // via "Get Started" (not "Skip"). Distinct from data.onboardingComplete
+  // (which is a single global flag set when ANY program's setup finishes).
+  // Read by the in-app program switcher to decide whether a switch can skip
+  // setup. Backfilled for v1.0.3 users on load from observed lift state.
+  setupComplete: boolean;
 }
 
 // TM lift identity used by the Wave 2 stall state machine. Matches the SS
@@ -67,6 +73,8 @@ export interface TexasMethodState {
   pendingStallResolution: TMPendingStallResolution | null;
   powerCleanEnabled: boolean;
   bodyweight: number;
+  // See Wendler531State.setupComplete for semantics.
+  setupComplete: boolean;
 }
 
 // Starting Strength — Rippetoe novice linear progression (canonical, 1.0.4 SS
@@ -114,6 +122,11 @@ export interface StartingStrengthState {
   sessionCount: number;
   // ISO date the program was started; "" until set at onboarding.
   startDate: string;
+  // See Wendler531State.setupComplete for semantics. For SS, this is also
+  // implied by any workingWeight > 0 (SS setup is all-or-nothing and writes
+  // workingWeights atomically), but the explicit flag is the authoritative
+  // signal post-1.0.4.
+  setupComplete: boolean;
 }
 
 export interface ProgramsState {
@@ -124,6 +137,7 @@ export interface ProgramsState {
 
 export const DEFAULT_WENDLER531_STATE: Wendler531State = {
   currentCycle: 1,
+  setupComplete: false,
 };
 
 export const DEFAULT_TEXAS_METHOD_STATE: TexasMethodState = {
@@ -134,6 +148,7 @@ export const DEFAULT_TEXAS_METHOD_STATE: TexasMethodState = {
   pendingStallResolution: null,
   powerCleanEnabled: false,
   bodyweight: 0,
+  setupComplete: false,
 };
 
 // SS workingWeights default to 0 — the user enters real starting weights at
@@ -159,6 +174,7 @@ export const DEFAULT_STARTING_STRENGTH_STATE: StartingStrengthState = {
   lastWorkout: null,
   sessionCount: 0,
   startDate: "",
+  setupComplete: false,
 };
 
 export const DEFAULT_PROGRAMS_STATE: ProgramsState = {

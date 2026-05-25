@@ -38,7 +38,20 @@ export default function Wendler531Setup() {
     // completeOnboarding sets onboardingComplete=true alongside the patch.
     // Idempotent if already true (the in-app switcher path), so safe to
     // reuse here for both the first-launch and switch-from-settings flows.
-    completeOnboarding({ activeProgram: "wendler531", lifts: nextLifts });
+    // setupComplete flips to true only on Get Started — Skip preserves the
+    // existing per-program flag (false on a fresh install, possibly true if
+    // the user previously completed and is re-entering setup).
+    completeOnboarding({
+      activeProgram: "wendler531",
+      lifts: nextLifts,
+      programs: {
+        ...data.programs,
+        wendler531: {
+          ...data.programs.wendler531,
+          setupComplete: skip ? data.programs.wendler531.setupComplete : true,
+        },
+      },
+    });
     router.replace(fromSettings ? "/(tabs)/settings" : "/(tabs)");
   };
 
