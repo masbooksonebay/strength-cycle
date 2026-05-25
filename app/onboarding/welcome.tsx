@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
 import { spacing, borderRadius } from "../../constants/theme";
 
-const ICON_SIZE = 88;
+const ICON_SIZE = 120;
 
 export default function Welcome() {
   const { theme } = useApp();
