@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useApp } from "../../lib/context";
@@ -7,6 +7,11 @@ import { ProgramId, PROGRAMS } from "../../lib/programs";
 import { AppData } from "../../lib/store";
 
 const PROGRAM_LIST: ProgramId[] = ["wendler531", "startingStrength", "texasMethod"];
+
+// The four barbell lifts every program requires data for. Custom lifts the user
+// has added (isCustom: true) are not gating — only the four core lifts decide
+// whether a switch can skip setup.
+const CORE_LIFT_NAMES = ["Squat", "Bench Press", "Deadlift", "Overhead Press"] as const;
 
 // User-facing row title — pulled straight from each program's metadata.
 const PROGRAM_ROW_TITLE: Record<ProgramId, string> = {
@@ -21,21 +26,26 @@ const PROGRAM_ROW_SUBTITLE: Record<ProgramId, string> = {
   startingStrength: "Linear progression · 3x5 working sets · Workout A/B alternation",
 };
 
-// "Configured" = the user has supplied real numbers for this program. 5/3/1 and
-// Texas Method share lifts[name].oneRepMax as their single source of truth
-// (Phase 5E); DEFAULT_LIFTS seeds every 1RM at 100, so a lift with a 1RM other
-// than 100 means the user has entered real values. Starting Strength is
-// independent — it carries its own workingWeights slice, which defaults to 0
-// and is populated only at SS setup, so a non-zero working weight is its
-// configured signal. Checking workingWeights directly (rather than a proxy such
-// as startDate) means a program reads as configured precisely when its values
-// are actually present — which is what lets the switcher bypass setup.
+// "Configured" = the target program has all the data it needs to start a
+// workout without re-prompting. 5/3/1 and Texas Method both run off
+// lifts[name].oneRepMax — DEFAULT_LIFTS seeds every 1RM at 100, so all four
+// core lifts must read as both > 0 AND != 100 to count as user-entered.
+// Starting Strength carries its own workingWeights slice (defaults to 0 for
+// all four), populated only at SS setup — all four must be > 0.
+//
+// Tightened from a prior version that used `.some()` on the 1RM check: even
+// one core lift left at the default 100 should still trigger the setup screen
+// (5/3/1 generates work-set loads as percentages of each lift's 1RM, so a 100
+// default would prescribe nonsense weights for that lift).
 function isProgramConfigured(data: AppData, id: ProgramId): boolean {
   if (id === "startingStrength") {
     const ww = data.programs.startingStrength.workingWeights;
-    return ww.squat > 0 || ww.bench > 0 || ww.deadlift > 0 || ww.press > 0;
+    return ww.squat > 0 && ww.bench > 0 && ww.deadlift > 0 && ww.press > 0;
   }
-  return data.lifts.some((l) => l.oneRepMax !== 100);
+  return CORE_LIFT_NAMES.every((name) => {
+    const lift = data.lifts.find((l) => l.name === name);
+    return lift !== undefined && lift.oneRepMax > 0 && lift.oneRepMax !== 100;
+  });
 }
 
 export default function ProgramSwitcher() {
@@ -45,13 +55,21 @@ export default function ProgramSwitcher() {
   const handleSelect = (id: ProgramId) => {
     if (id === data.activeProgram) return;
     if (isProgramConfigured(data, id)) {
-      // Already configured — switch and drop straight into the Workout tab,
-      // skipping setup entirely.
+      // Target program already has its data. Switch in place, return to the
+      // Settings screen (not the Workout tab — matches industry convention:
+      // Hevy / Strong / Boostcamp / Apple Fitness all keep the user in the
+      // settings surface they came from), and show a confirmation alert so
+      // the silent state flip is visible. Per-program cycle/week/phase state
+      // lives in data.programs.{id} and is left untouched by switchProgram,
+      // so each program resumes exactly where it was last left.
       switchProgram(id);
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/settings");
+      Alert.alert("Switched", `Now training ${PROGRAMS[id].displayName}.`);
       return;
     }
-    // Never configured — run the first-time setup flow for this program.
+    // Target program has no usable data — run the first-time setup flow.
+    // ?return=settings tells the setup screen to land back in Settings (not
+    // (tabs)) on completion, preserving the user's modal-from-Settings frame.
     const meta = PROGRAMS[id];
     router.replace(`/onboarding/${meta.setupRoute}?return=settings`);
   };
