@@ -84,6 +84,9 @@ export default function ProgramSelect() {
         <Text style={[styles.hint, { color: theme.textSecondary }]}>
           You can change your program anytime in Settings.
         </Text>
+        <Text style={[styles.roadmapNote, { color: theme.textSecondary }]}>
+          More programs in development — 5/3/1 BBB, GZCLP, and nSuns coming in future updates.
+        </Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -109,6 +112,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: "900", marginTop: spacing.md, marginBottom: spacing.lg },
   subtitle: { fontSize: 14, marginBottom: spacing.lg },
   hint: { fontSize: 14, textAlign: "center", marginTop: spacing.sm },
+  roadmapNote: { fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: spacing.sm, paddingHorizontal: spacing.md, fontStyle: "italic" },
   card: {
     borderRadius: borderRadius.md,
     padding: spacing.md,
